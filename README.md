@@ -13,7 +13,8 @@ Open `index.html` or load any file directly in a browser — no build step, no s
 | `clusters_particle_sim_v3.html` | Adds per-species particle counts and JSON config import |
 
 ```
-make serve   # serves at http://localhost:8000 via Python HTTP server
+make serve       # serves at http://localhost:8000 via Python HTTP server
+make prepare-gh  # create GitHub repo, push, and enable Pages via Actions
 ```
 
 ## Deriving a force matrix from data

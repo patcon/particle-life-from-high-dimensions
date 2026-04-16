@@ -5,7 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development
 
 ```
-make serve   # serves files at http://localhost:8000 via Python HTTP server
+make serve       # serves files at http://localhost:8000 via Python HTTP server
+make prepare-gh  # create GitHub repo, push, and enable Pages via Actions
 ```
 
 ## Architecture
