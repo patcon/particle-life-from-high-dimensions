@@ -46,6 +46,10 @@ uv run derive_forces.py --input ~/Downloads/chile-protest-highly-variable-test.h
 
 Start with `--n-species 5` — it produces more interesting asymmetric dynamics than 4. Use `--min-cluster-size 2` so HDBSCAN can find enough clusters; `--k-gain 50` keeps forces from saturating at ±1.
 
+### Label + slider pairing
+
+Every label must be co-located with its control in a `<span class="ctrl-pair">` (or `<div class="ctrl-pair">`) so they never line-break separately. The `.ctrl-pair` class is `display: inline-flex; align-items: center; gap: 5px` (defined in `sim-css.njk`). This applies to all controls — in `sim.njk` static HTML and in any dynamically generated control HTML (e.g. `renderMatrix()` speaker section). Never place a bare `<label>` and its `<input>` as sibling flex children without this wrapper.
+
 ### Trail rendering (v2/v3)
 
 The trail effect uses two canvases: an offscreen `trailCanvas` where particles are drawn and faded via `destination-out` compositing, and the main canvas which always fills a solid `#080808` background before compositing the trail on top. This avoids integer-rounding artifacts where 8-bit pixel values get stuck slightly off the background color when using a semi-transparent `fillRect` fade on a single canvas.

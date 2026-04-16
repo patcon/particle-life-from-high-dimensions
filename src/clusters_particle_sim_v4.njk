@@ -316,15 +316,21 @@ function renderMatrix() {
   h += `<div style="margin-top:12px;border-top:1px solid #333;padding-top:10px;">
     <div style="font-size:12px;color:#888;margin-bottom:6px;">speaker physics</div>
     <div style="display:flex;flex-wrap:wrap;gap:7px;align-items:center;">
-      <label style="font-size:13px;color:#888;" title="Speaker max radius">s-rmax</label>
-      <input type="range" min="20" max="400" value="${S_RMAX}" step="5" style="width:60px;" id="srmax-sl"
-             oninput="S_RMAX=+this.value">
-      <label style="font-size:13px;color:#888;" title="Speaker inner repulsion radius">s-rmin</label>
-      <input type="range" min="2" max="80" value="${S_RMIN}" step="1" style="width:60px;" id="srmin-sl"
-             oninput="S_RMIN=+this.value">
-      <label style="font-size:13px;color:#888;" title="Speaker force multiplier">s-force</label>
-      <input type="range" min="0.1" max="5" value="${S_G}" step="0.1" style="width:60px;" id="sg-sl"
-             oninput="S_G=+this.value">
+      <span class="ctrl-pair">
+        <label style="font-size:13px;color:#888;" title="Speaker max radius">s-rmax</label>
+        <input type="range" min="20" max="400" value="${S_RMAX}" step="5" style="width:60px;" id="srmax-sl"
+               oninput="S_RMAX=+this.value">
+      </span>
+      <span class="ctrl-pair">
+        <label style="font-size:13px;color:#888;" title="Speaker inner repulsion radius">s-rmin</label>
+        <input type="range" min="2" max="80" value="${S_RMIN}" step="1" style="width:60px;" id="srmin-sl"
+               oninput="S_RMIN=+this.value">
+      </span>
+      <span class="ctrl-pair">
+        <label style="font-size:13px;color:#888;" title="Speaker force multiplier">s-force</label>
+        <input type="range" min="0.1" max="5" value="${S_G}" step="0.1" style="width:60px;" id="sg-sl"
+               oninput="S_G=+this.value">
+      </span>
     </div>
   </div>`;
   document.getElementById('mat-wrap').innerHTML = h;
