@@ -7,6 +7,7 @@
 #   "llvmlite==0.45.1; platform_system == 'Darwin' and platform_machine == 'x86_64'",
 #   "numba==0.62.1",
 #   "pacmap==0.8.0",
+#   "hdbscan>=0.8.38",
 #   "scikit-learn>=1.3",
 #   "numpy>=1.26",
 # ]
@@ -31,7 +32,7 @@ import sys
 import numpy as np
 import h5py
 import pacmap
-from sklearn.cluster import AgglomerativeClustering
+from hdbscan.flat import HDBSCAN_flat
 
 
 def parse_args():
@@ -55,6 +56,13 @@ def parse_args():
              "Tries adata.layers[NAME] first, then adata.obsm[NAME].",
     )
     p.add_argument(
+        "--min-cluster-size",
+        type=int,
+        default=5,
+        help="Minimum cluster size for HDBSCAN (default: 5). Lower this if HDBSCAN "
+             "can't find enough clusters.",
+    )
+    p.add_argument(
         "--k-gain",
         type=float,
         default=200.0,
@@ -75,6 +83,13 @@ def load_matrix(path, layer):
     print(f"Loading {path}...", file=sys.stderr)
 
     with h5py.File(path, "r") as f:
+        # Apply cluster_mask if present (filters out unmasked observations)
+        if "obs/cluster_mask" in f:
+            cluster_mask = f["obs/cluster_mask"][:]
+            print(f"  Applying cluster_mask: {cluster_mask.sum()} / {len(cluster_mask)} cells kept", file=sys.stderr)
+        else:
+            cluster_mask = None
+
         if layer is None:
             # .X may be stored as a dense dataset or a sparse group
             if "X" in f:
@@ -109,6 +124,8 @@ def load_matrix(path, layer):
             sys.exit(1)
 
     X = np.array(X, dtype=np.float32)
+    if cluster_mask is not None:
+        X = X[cluster_mask]
     print(
         f"  {X.shape[0]} cells x {X.shape[1]} features from {source_desc}",
         file=sys.stderr,
@@ -133,10 +150,7 @@ def run_pacmap(X):
     assert hasattr(pacmap, "PaCMAP"), "pacmap module not found"
     pm = pacmap.PaCMAP(
         n_components=2,
-        n_neighbors=10,
-        MN_ratio=0.5,
-        FP_ratio=2.0,
-        random_state=42,
+        n_neighbors=None,  # let PaCMAP compute from data size (matches valency-anndata)
     )
     pm.fit_transform(X)
 
@@ -155,10 +169,35 @@ def run_pacmap(X):
     return nn_pairs, mn_pairs, fp_pairs
 
 
-def cluster_cells(X, n_species):
-    print(f"Clustering into {n_species} species with AgglomerativeClustering...", file=sys.stderr)
-    model = AgglomerativeClustering(n_clusters=n_species)
-    labels = model.fit_predict(X).astype(np.int32)
+def cluster_cells(X, n_species, min_cluster_size):
+    print(
+        f"Clustering into {n_species} species with HDBSCAN_flat "
+        f"(min_cluster_size={min_cluster_size})...",
+        file=sys.stderr,
+    )
+    result = HDBSCAN_flat(
+        X,
+        n_clusters=n_species,
+        min_cluster_size=min_cluster_size,
+        cluster_selection_method="leaf",
+    )
+    # API varies by version: some return (labels, probs), others return an object
+    if hasattr(result, "labels_"):
+        labels = np.array(result.labels_, dtype=np.int32)
+    else:
+        labels = np.array(result[0], dtype=np.int32)
+
+    n_noise = int(np.sum(labels == -1))
+    if n_noise > 0:
+        print(
+            f"  {n_noise} noise points — assigning to nearest cluster centroid.",
+            file=sys.stderr,
+        )
+        cluster_ids = [s for s in range(n_species) if np.any(labels == s)]
+        centroids = np.array([X[labels == s].mean(axis=0) for s in cluster_ids])
+        noise_idx = np.where(labels == -1)[0]
+        dists = np.linalg.norm(X[noise_idx, None, :] - centroids[None, :, :], axis=2)
+        labels[noise_idx] = np.array(cluster_ids)[np.argmin(dists, axis=1)]
 
     counts = [int(np.sum(labels == s)) for s in range(n_species)]
     print(f"  Cluster sizes: {counts}", file=sys.stderr)
@@ -195,7 +234,7 @@ def main():
     args = parse_args()
     X, source_path = load_matrix(args.input, args.layer)
     nn_pairs, mn_pairs, fp_pairs = run_pacmap(X)
-    labels, counts = cluster_cells(X, args.n_species)
+    labels, counts = cluster_cells(X, args.n_species, args.min_cluster_size)
     mat = compute_force_matrix(
         labels, counts, nn_pairs, mn_pairs, fp_pairs,
         args.n_species, args.k_gain, args.mn_weight,
