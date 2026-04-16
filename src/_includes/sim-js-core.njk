@@ -1,4 +1,4 @@
-const COLORS = ['#D85A30','#378ADD','#1D9E75','#EF9F27','#7F77DD'];
+const COLORS = ['#D85A30','#22c55e','#1D9E75','#EF9F27','#7F77DD'];
 const NAMES  = ['A','B','C','D','E'];
 let R_MAX = 80, R_MIN = 13, DT = 0.5, DAMPING = 0.88, G = 1.8;
 
@@ -68,7 +68,7 @@ function updateOscillation(t) {
       mat[i][j] = v;
       const sl = document.getElementById(`sl-${i}-${j}`);
       const vd = document.getElementById(`vd-${i}-${j}`);
-      if (sl) { sl.value = v; sl.style.accentColor = v > 0 ? '#378ADD' : '#D85A30'; }
+      if (sl) { sl.value = v; sl.style.accentColor = v > 0 ? '#22c55e' : '#D85A30'; }
       if (vd) vd.textContent = (v >= 0 ? '+' : '') + v.toFixed(2);
     }
   }
@@ -79,7 +79,7 @@ function onSlider(i, j, v) {
   const vd = document.getElementById(`vd-${i}-${j}`);
   const sl = document.getElementById(`sl-${i}-${j}`);
   if (vd) vd.textContent = (v >= 0 ? '+' : '') + v.toFixed(2);
-  if (sl) sl.style.accentColor = v > 0 ? '#378ADD' : '#D85A30';
+  if (sl) sl.style.accentColor = v > 0 ? '#22c55e' : '#D85A30';
   if (oscillating && !cellState[i][j].locked) toggleLock(i, j);
 }
 

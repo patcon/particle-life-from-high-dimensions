@@ -2,7 +2,17 @@ const trailCanvas = document.createElement('canvas');
 trailCanvas.width = CW; trailCanvas.height = CH;
 const tCtx = trailCanvas.getContext('2d');
 
-let _dbgLastT = 0, _dbgFps = 0;
+let _dbgLastT = 0, _dbgFps = 0, _mouseX = null, _mouseY = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  const cvs = document.getElementById('c');
+  cvs.addEventListener('mousemove', e => {
+    const r = cvs.getBoundingClientRect();
+    _mouseX = (e.clientX - r.left) * (CW / r.width);
+    _mouseY = (e.clientY - r.top)  * (CH / r.height);
+  });
+  cvs.addEventListener('mouseleave', () => { _mouseX = null; _mouseY = null; });
+});
 
 function draw() {
   const trail = +document.getElementById('trail-sl').value;
@@ -24,6 +34,32 @@ function draw() {
   ctx.drawImage(trailCanvas, 0, 0);
 
   if (debug) {
+    // Collect particles to annotate: first 5 per species + nearest to mouse
+    const toAnnotate = new Set();
+    const perSpecies = {};
+    for (const p of particles) {
+      if ((perSpecies[p.t] = (perSpecies[p.t] || 0)) < 5) { toAnnotate.add(p); perSpecies[p.t]++; }
+    }
+    if (_mouseX !== null) {
+      let nearest = null, best = Infinity;
+      for (const p of particles) {
+        const d2 = (p.x-_mouseX)**2 + (p.y-_mouseY)**2;
+        if (d2 < best) { best = d2; nearest = p; }
+      }
+      if (nearest) toAnnotate.add(nearest);
+    }
+    ctx.lineWidth = 1;
+    for (const p of toAnnotate) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, R_MAX, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(34,197,94,0.25)';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, R_MIN, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(216,90,48,0.55)';
+      ctx.stroke();
+    }
+
     const now = performance.now();
     if (_dbgLastT) _dbgFps = _dbgFps * 0.9 + (1000 / (now - _dbgLastT)) * 0.1;
     _dbgLastT = now;

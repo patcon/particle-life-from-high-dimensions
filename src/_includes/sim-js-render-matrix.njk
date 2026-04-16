@@ -11,7 +11,7 @@ function renderMatrix() {
       h += `<td><div class="mat-cell">
         <input type="range" min="-1" max="1" step="0.05" value="${v}"
           id="sl-${i}-${j}"
-          style="width:62px;accent-color:${v>0?'#378ADD':'#D85A30'};"
+          style="width:62px;accent-color:${v>0?'#22c55e':'#D85A30'};"
           oninput="onSlider(${i},${j},+this.value)">
         <div class="mat-val" id="vd-${i}-${j}">${v>=0?'+':''}${v.toFixed(2)}</div>
         <button class="lock-btn${lk?' locked':''}" id="lock-${i}-${j}" onclick="toggleLock(${i},${j})">${lk?'locked':'free'}</button>
