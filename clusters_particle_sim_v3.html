@@ -208,7 +208,7 @@ function renderMatrix() {
   // Count row
   h += `<tr><td style="font-size:11px;color:#555;text-align:right;padding-right:6px;">count</td>`;
   for (let j = 0; j < nS; j++)
-    h += `<td><input type="number" min="10" max="300" value="${pps[j]}" style="width:52px;"
+    h += `<td><input type="number" min="1" max="2000" value="${pps[j]}" style="width:52px;"
       id="cnt-${j}" oninput="onCount(${j},+this.value)"></td>`;
   h += `</tr></thead><tbody>`;
   for (let i = 0; i < nS; i++) {
@@ -232,7 +232,7 @@ function renderMatrix() {
 }
 
 function onCount(j, v) {
-  pps[j] = Math.max(10, Math.min(300, v));
+  pps[j] = Math.max(1, Math.min(2000, v));
   initParticles();
 }
 
@@ -287,12 +287,10 @@ function loadConfig(cfg) {
   for (let i = 0; i < n; i++)
     for (let j = 0; j < n; j++)
       mat[i][j] = cfg.mat[i][j];
-  // Normalize counts to [40, 200] preserving proportions.
-  // Floor of 40 ensures even tiny clusters have enough particles to interact.
+  // Use raw cluster counts as particle counts directly.
   if (Array.isArray(cfg.counts) && cfg.counts.length >= n) {
-    const maxC = Math.max(...cfg.counts.slice(0, n));
     for (let s = 0; s < n; s++)
-      pps[s] = Math.round(40 + (cfg.counts[s] / maxC) * 160);
+      pps[s] = cfg.counts[s];
   }
   const sel = document.getElementById('sel-n');
   if (sel) sel.value = String(n);
