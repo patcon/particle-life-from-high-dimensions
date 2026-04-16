@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clusters — particle life sim</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #111; color: #ccc; padding: 14px; }
+  h1 { font-size: 15px; font-weight: 500; color: #aaa; margin-bottom: 10px; letter-spacing: 0.03em; }
+
+  #layout { display: flex; flex-direction: column; gap: 12px; }
+  #left { flex: 1; min-width: 0; }
+  #right { display: flex; flex-direction: column; gap: 10px; }
+
+  @media (min-width: 720px) {
+    #layout { flex-direction: row; align-items: flex-start; }
+    #left { flex: 1; }
+    #right { width: 310px; flex-shrink: 0; position: sticky; top: 14px; max-height: calc(100vh - 28px); overflow-y: auto; }
+  }
+
+  #c { display: block; width: 100%; background: #080808; border-radius: 8px; border: 0.5px solid #333; }
+  #controls { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  #controls label { font-size: 13px; color: #888; }
+  button { background: transparent; border: 0.5px solid #555; color: #ccc; border-radius: 6px; padding: 5px 11px; font-size: 13px; cursor: pointer; }
+  button:hover { background: #222; }
+  select { background: #1a1a1a; border: 0.5px solid #555; color: #ccc; border-radius: 6px; padding: 4px 8px; font-size: 13px; }
+  input[type=range] { accent-color: #378ADD; }
+
+  #mat-section { overflow-x: auto; }
+  .mat-table { border-collapse: collapse; font-size: 12px; }
+  .mat-table th, .mat-table td { padding: 3px 4px; text-align: center; }
+  .mat-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .mat-val { font-size: 11px; font-family: monospace; color: #666; min-width: 36px; }
+  .sp-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: middle; margin-right: 3px; }
+  .sp-label { color: #888; font-size: 12px; }
+  #mat-legend { font-size: 11px; color: #555; margin-top: 6px; }
+
+  .lock-btn { font-size: 10px; padding: 2px 0; width: 62px; color: #555; border: 0.5px solid #3a3a3a; border-radius: 4px; background: transparent; cursor: pointer; letter-spacing: 0.02em; }
+  .lock-btn:hover { background: #1e1e1e; }
+  .lock-btn.locked { color: #EF9F27; border-color: #6b4a10; background: rgba(239,159,39,0.08); }
+  #btn-osc.active { color: #1D9E75; border-color: #0f6e56; }
+  .osc-speed { display: none; align-items: center; gap: 6px; }
+  .osc-speed.visible { display: flex; }
+</style>
+</head>
+<body>
+
+<div id="layout">
+  <div id="left">
+    <canvas id="c" width="620" height="420"></canvas>
+  </div>
+  <div id="right">
+    <h1>clusters — particle life</h1>
+
+    <div id="controls">
+      <button id="btn-play" onclick="togglePlay()">pause</button>
+      <button onclick="randomizeMatrix()">randomize</button>
+      <button onclick="initParticles()">reset positions</button>
+      <button id="btn-osc" onclick="toggleOscillate()">oscillate</button>
+      <div class="osc-speed" id="osc-speed">
+        <label>speed</label>
+        <input type="range" min="1" max="20" value="5" step="1" style="width:60px;" id="osc-sl">
+      </div>
+      <label>species</label>
+      <select id="sel-n" onchange="changeSpecies(+this.value)" style="width:52px;">
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4" selected>4</option>
+        <option value="5">5</option>
+      </select>
+      <label>trail</label>
+      <input type="range" min="1" max="30" value="8" step="1" style="width:60px;" id="trail-sl">
+    </div>
+
+    <div id="mat-section">
+      <div id="mat-wrap"></div>
+      <div id="mat-legend">row = from &nbsp;·&nbsp; col = to &nbsp;·&nbsp; + attracts &nbsp;·&nbsp; − repels</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLORS = ['#D85A30','#378ADD','#1D9E75','#EF9F27','#7F77DD'];
+const NAMES  = ['A','B','C','D','E'];
+const CW = 620, CH = 420;
+const R_MAX = 80, R_MIN = 13, DT = 0.5, DAMPING = 0.88, G = 1.8, PPS = 60;
+
+let nS = 4, mat = [], particles = [], running = true, oscillating = false;
+let cellState = [];
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const trailCanvas = document.createElement('canvas');
+trailCanvas.width = CW; trailCanvas.height = CH;
+const tCtx = trailCanvas.getContext('2d');
+
+function rnd() { return +((Math.random()*2 - 1).toFixed(2)); }
+
+function initMatrix() {
+  mat = Array.from({length: 5}, () => Array.from({length: 5}, rnd));
+}
+
+function initCellState() {
+  cellState = Array.from({length: 5}, () =>
+    Array.from({length: 5}, () => ({
+      phase: Math.random() * Math.PI * 2,
+      freq:  0.3 + Math.random() * 0.9,
+      locked: false
+    }))
+  );
+}
+
+function initParticles() {
+  particles = [];
+  for (let s = 0; s < nS; s++)
+    for (let k = 0; k < PPS; k++)
+      particles.push({x: Math.random()*CW, y: Math.random()*CH, vx:0, vy:0, t:s});
+}
+
+function step() {
+  const n = particles.length;
+  const ax = new Float32Array(n), ay = new Float32Array(n);
+  const RR = R_MAX * R_MAX;
+  for (let i = 0; i < n; i++) {
+    const pi = particles[i];
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue;
+      const pj = particles[j];
+      let dx = pj.x - pi.x, dy = pj.y - pi.y;
+      if (dx >  CW/2) dx -= CW; else if (dx < -CW/2) dx += CW;
+      if (dy >  CH/2) dy -= CH; else if (dy < -CH/2) dy += CH;
+      const r2 = dx*dx + dy*dy;
+      if (r2 < 0.01 || r2 > RR) continue;
+      const r = Math.sqrt(r2);
+      const f = r < R_MIN
+        ? (r / R_MIN - 1)
+        : mat[pi.t][pj.t] * (1 - r / R_MAX);
+      const inv = f * G / r;
+      ax[i] += dx * inv;
+      ay[i] += dy * inv;
+    }
+  }
+  for (let i = 0; i < n; i++) {
+    const p = particles[i];
+    p.vx = (p.vx + ax[i]*DT) * DAMPING;
+    p.vy = (p.vy + ay[i]*DT) * DAMPING;
+    p.x = ((p.x + p.vx*DT) % CW + CW) % CW;
+    p.y = ((p.y + p.vy*DT) % CH + CH) % CH;
+  }
+}
+
+function updateOscillation(t) {
+  if (!oscillating) return;
+  const speed = +document.getElementById('osc-sl').value / 10;
+  for (let i = 0; i < nS; i++) {
+    for (let j = 0; j < nS; j++) {
+      if (cellState[i][j].locked) continue;
+      const v = Math.sin(t * cellState[i][j].freq * speed + cellState[i][j].phase);
+      mat[i][j] = v;
+      const sl = document.getElementById(`sl-${i}-${j}`);
+      const vd = document.getElementById(`vd-${i}-${j}`);
+      if (sl) { sl.value = v; sl.style.accentColor = v > 0 ? '#378ADD' : '#D85A30'; }
+      if (vd) vd.textContent = (v >= 0 ? '+' : '') + v.toFixed(2);
+    }
+  }
+}
+
+function draw() {
+  const trail = +document.getElementById('trail-sl').value;
+  // Fade trail canvas toward transparency (avoids integer-rounding artifacts)
+  tCtx.globalCompositeOperation = 'destination-out';
+  tCtx.fillStyle = `rgba(0,0,0,${trail/100})`;
+  tCtx.fillRect(0, 0, CW, CH);
+  tCtx.globalCompositeOperation = 'source-over';
+  // Draw particles onto trail canvas
+  for (const p of particles) {
+    tCtx.fillStyle = COLORS[p.t];
+    tCtx.beginPath();
+    tCtx.arc(p.x, p.y, 2.8, 0, Math.PI*2);
+    tCtx.fill();
+  }
+  // Composite: solid background + trail canvas
+  ctx.fillStyle = '#080808';
+  ctx.fillRect(0, 0, CW, CH);
+  ctx.drawImage(trailCanvas, 0, 0);
+}
+
+function loop(ts) {
+  const t = ts / 1000;
+  if (running) { updateOscillation(t); step(); draw(); }
+  requestAnimationFrame(loop);
+}
+
+function renderMatrix() {
+  let h = `<table class="mat-table"><thead><tr><th></th>`;
+  for (let j = 0; j < nS; j++)
+    h += `<th><span class="sp-dot" style="background:${COLORS[j]}"></span><span class="sp-label">${NAMES[j]}</span></th>`;
+  h += `</tr></thead><tbody>`;
+  for (let i = 0; i < nS; i++) {
+    h += `<tr><td><span class="sp-dot" style="background:${COLORS[i]}"></span><span class="sp-label">${NAMES[i]}</span></td>`;
+    for (let j = 0; j < nS; j++) {
+      const v = mat[i][j];
+      const lk = cellState[i][j].locked;
+      h += `<td><div class="mat-cell">
+        <input type="range" min="-1" max="1" step="0.05" value="${v}"
+          id="sl-${i}-${j}"
+          style="width:62px;accent-color:${v>0?'#378ADD':'#D85A30'};"
+          oninput="onSlider(${i},${j},+this.value)">
+        <div class="mat-val" id="vd-${i}-${j}">${v>=0?'+':''}${v.toFixed(2)}</div>
+        <button class="lock-btn${lk?' locked':''}" id="lock-${i}-${j}" onclick="toggleLock(${i},${j})">${lk?'locked':'free'}</button>
+      </div></td>`;
+    }
+    h += `</tr>`;
+  }
+  h += `</tbody></table>`;
+  document.getElementById('mat-wrap').innerHTML = h;
+}
+
+function onSlider(i, j, v) {
+  mat[i][j] = v;
+  const vd = document.getElementById(`vd-${i}-${j}`);
+  const sl = document.getElementById(`sl-${i}-${j}`);
+  if (vd) vd.textContent = (v >= 0 ? '+' : '') + v.toFixed(2);
+  if (sl) sl.style.accentColor = v > 0 ? '#378ADD' : '#D85A30';
+  if (oscillating && !cellState[i][j].locked) toggleLock(i, j);
+}
+
+function toggleLock(i, j) {
+  cellState[i][j].locked = !cellState[i][j].locked;
+  const lk = cellState[i][j].locked;
+  const btn = document.getElementById(`lock-${i}-${j}`);
+  if (btn) { btn.textContent = lk ? 'locked' : 'free'; btn.className = 'lock-btn' + (lk ? ' locked' : ''); }
+}
+
+function togglePlay() {
+  running = !running;
+  document.getElementById('btn-play').textContent = running ? 'pause' : 'play';
+}
+
+function toggleOscillate() {
+  oscillating = !oscillating;
+  const btn = document.getElementById('btn-osc');
+  btn.textContent = oscillating ? 'stop oscillating' : 'oscillate';
+  btn.className = oscillating ? 'active' : '';
+  document.getElementById('osc-speed').className = oscillating ? 'osc-speed visible' : 'osc-speed';
+}
+
+function randomizeMatrix() { initMatrix(); initCellState(); renderMatrix(); }
+function changeSpecies(n) { nS = n; initParticles(); renderMatrix(); }
+
+initMatrix();
+initCellState();
+initParticles();
+renderMatrix();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
