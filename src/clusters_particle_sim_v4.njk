@@ -376,9 +376,19 @@ function loadConfig(cfg) {
   }
   const sel = document.getElementById('sel-n');
   if (sel) sel.value = String(n);
-  for (let i = 0; i < n; i++)
-    for (let j = 0; j < 6; j++)
-      cellState[i][j].locked = false;
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++)
+      cellState[i][j].locked = !!(cfg.locks && cfg.locks[i] && cfg.locks[i][j]);
+    cellState[i][S_IDX].locked = !!(cfg.speaker && cfg.speaker.locks && cfg.speaker.locks[i]);
+  }
+  if (cfg.physics) {
+    if (typeof cfg.physics.force    === 'number') { G       = cfg.physics.force;    document.getElementById('g-sl').value    = G; }
+    if (typeof cfg.physics.damping  === 'number') { DAMPING = cfg.physics.damping;  document.getElementById('damp-sl').value = DAMPING; }
+    if (typeof cfg.physics.rmax     === 'number') { R_MAX   = cfg.physics.rmax;     document.getElementById('rmax-sl').value = R_MAX; }
+    if (typeof cfg.physics.rmin     === 'number') { R_MIN   = cfg.physics.rmin;     document.getElementById('rmin-sl').value = R_MIN; }
+    if (typeof cfg.physics.trail    === 'number') document.getElementById('trail-sl').value  = cfg.physics.trail;
+    if (typeof cfg.physics.oscSpeed === 'number') document.getElementById('osc-sl').value    = cfg.physics.oscSpeed;
+  }
   initParticles();
   renderMatrix();
 }
@@ -388,6 +398,8 @@ function saveConfig() {
     nS: nS,
     mat: mat.slice(0, nS).map(row => row.slice(0, nS)),
     counts: pps.slice(0, nS),
+    locks: Array.from({length: nS}, (_, i) =>
+      Array.from({length: nS}, (_, j) => cellState[i][j].locked)),
     physics: {
       force: G,
       damping: DAMPING,
@@ -400,7 +412,8 @@ function saveConfig() {
       rmax: S_RMAX,
       rmin: S_RMIN,
       g: S_G,
-      reactions: Array.from({length: nS}, (_, i) => mat[i][S_IDX])
+      reactions: Array.from({length: nS}, (_, i) => mat[i][S_IDX]),
+      locks: Array.from({length: nS}, (_, i) => cellState[i][S_IDX].locked)
     }
   };
   const blob = new Blob([JSON.stringify(cfg, null, 2)], {type: 'application/json'});

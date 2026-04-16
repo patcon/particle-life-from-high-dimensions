@@ -60,6 +60,7 @@ v3 and v4 export a JSON file via the "save config" button. This is the canonical
   "nS": 4,
   "mat": [[...], ...],
   "counts": [60, 60, 60, 60],
+  "locks": [[false, true, ...], ...],
   "physics": {
     "force": 1.8,
     "damping": 0.88,
@@ -78,7 +79,8 @@ v3 and v4 export a JSON file via the "save config" button. This is the canonical
     "rmax": 200,
     "rmin": 20,
     "g": 0.5,
-    "reactions": [...]
+    "reactions": [...],
+    "locks": [false, true, ...]
   }
 }
 ```
