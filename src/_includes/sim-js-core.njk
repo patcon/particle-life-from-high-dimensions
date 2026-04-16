@@ -104,3 +104,12 @@ function toggleOscillate() {
 }
 
 function randomizeMatrix() { initMatrix(); initCellState(); renderMatrix(); }
+
+function resetSettings() {
+  R_MAX = 80; R_MIN = 13; DT = 0.5; DAMPING = 0.88; G = 1.8;
+  document.getElementById('g-sl').value     = G;
+  document.getElementById('damp-sl').value  = DAMPING;
+  document.getElementById('rmax-sl').value  = R_MAX;
+  document.getElementById('rmin-sl').value  = R_MIN;
+  document.getElementById('trail-sl').value = 8;
+}
