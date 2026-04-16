@@ -195,6 +195,32 @@ function draw() {
   }
 }
 
+// Shadow updateOscillation: also oscillate speaker column cells
+function updateOscillation(t) {
+  if (!oscillating) return;
+  const speed = +document.getElementById('osc-sl').value / 10;
+  for (let i = 0; i < nS; i++) {
+    for (let j = 0; j < nS; j++) {
+      if (cellState[i][j].locked) continue;
+      const v = Math.sin(t * cellState[i][j].freq * speed + cellState[i][j].phase);
+      mat[i][j] = v;
+      const sl = document.getElementById(`sl-${i}-${j}`);
+      const vd = document.getElementById(`vd-${i}-${j}`);
+      if (sl) { sl.value = v; sl.style.accentColor = v > 0 ? '#22c55e' : '#D85A30'; }
+      if (vd) vd.textContent = (v >= 0 ? '+' : '') + v.toFixed(2);
+    }
+    // Speaker column
+    if (!cellState[i][S_IDX].locked) {
+      const v = Math.sin(t * cellState[i][S_IDX].freq * speed + cellState[i][S_IDX].phase);
+      mat[i][S_IDX] = v;
+      const sl = document.getElementById(`sl-${i}-${S_IDX}`);
+      const vd = document.getElementById(`vd-${i}-${S_IDX}`);
+      if (sl) { sl.value = v; sl.style.accentColor = v > 0 ? '#22c55e' : '#D85A30'; }
+      if (vd) vd.textContent = (v >= 0 ? '+' : '') + v.toFixed(2);
+    }
+  }
+}
+
 // Shadow randomizeMatrix: also randomize speaker column for active species
 function randomizeMatrix() {
   for (let i = 0; i < 5; i++)
