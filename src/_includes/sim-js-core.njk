@@ -103,7 +103,16 @@ function toggleOscillate() {
   document.getElementById('osc-speed').className = oscillating ? 'osc-speed visible' : 'osc-speed';
 }
 
-function randomizeMatrix() { initMatrix(); initCellState(); renderMatrix(); }
+function randomizeMatrix() {
+  for (let i = 0; i < 5; i++)
+    for (let j = 0; j < 5; j++)
+      if (!cellState[i][j].locked) {
+        mat[i][j] = rnd();
+        cellState[i][j].phase = Math.random() * Math.PI * 2;
+        cellState[i][j].freq  = 0.3 + Math.random() * 0.9;
+      }
+  renderMatrix();
+}
 
 function resetSettings() {
   R_MAX = 80; R_MIN = 13; DT = 0.5; DAMPING = 0.88; G = 1.8;
