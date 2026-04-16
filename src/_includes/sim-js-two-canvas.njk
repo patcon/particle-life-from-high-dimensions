@@ -2,6 +2,8 @@ const trailCanvas = document.createElement('canvas');
 trailCanvas.width = CW; trailCanvas.height = CH;
 const tCtx = trailCanvas.getContext('2d');
 
+let _dbgLastT = 0, _dbgFps = 0;
+
 function draw() {
   const trail = +document.getElementById('trail-sl').value;
   // Fade trail canvas toward transparency (avoids integer-rounding artifacts)
@@ -20,4 +22,25 @@ function draw() {
   ctx.fillStyle = '#080808';
   ctx.fillRect(0, 0, CW, CH);
   ctx.drawImage(trailCanvas, 0, 0);
+
+  if (debug) {
+    const now = performance.now();
+    if (_dbgLastT) _dbgFps = _dbgFps * 0.9 + (1000 / (now - _dbgLastT)) * 0.1;
+    _dbgLastT = now;
+    const lines = [
+      `fps    ${_dbgFps.toFixed(1)}`,
+      `n      ${particles.length}`,
+      `force  ${G.toFixed(2)}`,
+      `damp   ${DAMPING.toFixed(2)}`,
+      `r-max  ${R_MAX}`,
+      `r-min  ${R_MIN}`,
+    ];
+    ctx.font = '11px monospace';
+    const lh = 15, pad = 8;
+    const bw = 102, bh = lines.length * lh + pad;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(8, 8, bw, bh);
+    ctx.fillStyle = '#7aff9a';
+    lines.forEach((l, i) => ctx.fillText(l, 8 + pad/2, 8 + pad/2 + 10 + i * lh));
+  }
 }

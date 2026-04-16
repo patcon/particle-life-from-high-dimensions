@@ -3,7 +3,12 @@ const NAMES  = ['A','B','C','D','E'];
 let R_MAX = 80, R_MIN = 13, DT = 0.5, DAMPING = 0.88, G = 1.8;
 
 let nS = 4, mat = [], particles = [], running = true, oscillating = false;
-let cellState = [];
+let cellState = [], debug = false;
+
+function toggleDebug() {
+  debug = !debug;
+  document.getElementById('btn-debug').className = debug ? 'active' : '';
+}
 
 function rnd() { return +((Math.random()*2 - 1).toFixed(2)); }
 
