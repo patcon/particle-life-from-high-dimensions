@@ -1,3 +1,4 @@
+  :root { --accent: #378ADD; --accent-border: #1a5c9e; }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: system-ui, sans-serif; background: #111; color: #ccc; padding: 14px; }
   h1 { font-size: 15px; font-weight: 500; color: #aaa; margin-bottom: 10px; letter-spacing: 0.03em; }
@@ -7,7 +8,7 @@
   button { background: transparent; border: 0.5px solid #555; color: #ccc; border-radius: 6px; padding: 5px 11px; font-size: 13px; cursor: pointer; }
   button:hover { background: #222; }
   select { background: #1a1a1a; border: 0.5px solid #555; color: #ccc; border-radius: 6px; padding: 4px 8px; font-size: 13px; }
-  input[type=range] { accent-color: #378ADD; }
+  input[type=range] { accent-color: var(--accent); }
   #mat-section { overflow-x: auto; }
   .mat-table { border-collapse: collapse; font-size: 12px; }
   .mat-table th, .mat-table td { padding: 3px 4px; text-align: center; }
@@ -19,7 +20,7 @@
   .lock-btn { font-size: 10px; padding: 2px 0; width: 62px; color: #555; border: 0.5px solid #3a3a3a; border-radius: 4px; background: transparent; cursor: pointer; letter-spacing: 0.02em; }
   .lock-btn:hover { background: #1e1e1e; }
   .lock-btn.locked { color: #EF9F27; border-color: #6b4a10; background: rgba(239,159,39,0.08); }
-  #btn-osc.active { color: #1D9E75; border-color: #0f6e56; }
-  #btn-debug.active { color: #7aff9a; border-color: #2a6640; }
+  #btn-osc.active { color: var(--accent); border-color: var(--accent-border); }
+  #btn-debug.active { color: var(--accent); border-color: var(--accent-border); }
   .osc-speed { display: none; align-items: center; gap: 6px; }
   .osc-speed.visible { display: flex; }
