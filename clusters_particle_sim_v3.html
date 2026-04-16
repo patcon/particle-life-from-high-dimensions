@@ -287,11 +287,12 @@ function loadConfig(cfg) {
   for (let i = 0; i < n; i++)
     for (let j = 0; j < n; j++)
       mat[i][j] = cfg.mat[i][j];
-  // Normalize counts to [20, 200] preserving proportions
+  // Normalize counts to [40, 200] preserving proportions.
+  // Floor of 40 ensures even tiny clusters have enough particles to interact.
   if (Array.isArray(cfg.counts) && cfg.counts.length >= n) {
     const maxC = Math.max(...cfg.counts.slice(0, n));
     for (let s = 0; s < n; s++)
-      pps[s] = Math.round(20 + (cfg.counts[s] / maxC) * 180);
+      pps[s] = Math.round(40 + (cfg.counts[s] / maxC) * 160);
   }
   const sel = document.getElementById('sel-n');
   if (sel) sel.value = String(n);

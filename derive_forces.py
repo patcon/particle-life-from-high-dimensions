@@ -204,14 +204,23 @@ def cluster_cells(X, n_species, min_cluster_size):
     return labels, counts
 
 
-def pair_density(pairs, labels, a, b, size_a, size_b):
-    """Fraction of undirected pairs crossing clusters a and b, normalized by cluster sizes."""
+def pair_density_directed(pairs, labels, a, b, size_a, size_b):
+    """Directed pair density: count a→b pairs normalized by size_a * size_b.
+
+    PaCMAP stores pairs as (anchor, neighbor) where the anchor is the point
+    being embedded. By counting only anchor=a, neighbor=b (not both directions),
+    mat[A][B] ≠ mat[B][A] — giving the asymmetric forces that produce chasing
+    and orbiting in particle life.
+
+    Normalizing by size_a * size_b (same as the old symmetric formula) keeps
+    values in the same scale regardless of cluster size, so k_gain defaults
+    remain useful.
+    """
     if len(pairs) == 0 or size_a == 0 or size_b == 0:
         return 0.0
-    li = labels[pairs[:, 0]]
-    lj = labels[pairs[:, 1]]
-    mask = ((li == a) & (lj == b)) | ((li == b) & (lj == a))
-    return float(np.sum(mask)) / (size_a * size_b)
+    li = labels[pairs[:, 0]]  # anchor cluster
+    lj = labels[pairs[:, 1]]  # neighbor cluster
+    return float(np.sum((li == a) & (lj == b))) / (size_a * size_b)
 
 
 def compute_force_matrix(labels, counts, nn_pairs, mn_pairs, fp_pairs, n_species, k_gain, mn_weight):
@@ -220,9 +229,9 @@ def compute_force_matrix(labels, counts, nn_pairs, mn_pairs, fp_pairs, n_species
         row = []
         for b in range(n_species):
             sa, sb = counts[a], counts[b]
-            nn_d = pair_density(nn_pairs, labels, a, b, sa, sb)
-            mn_d = pair_density(mn_pairs, labels, a, b, sa, sb)
-            fp_d = pair_density(fp_pairs, labels, a, b, sa, sb)
+            nn_d = pair_density_directed(nn_pairs, labels, a, b, sa, sb)
+            mn_d = pair_density_directed(mn_pairs, labels, a, b, sa, sb)
+            fp_d = pair_density_directed(fp_pairs, labels, a, b, sa, sb)
             attraction = nn_d + mn_weight * mn_d
             force = float(np.tanh(k_gain * (attraction - fp_d)))
             row.append(round(force, 4))
@@ -264,7 +273,7 @@ def main():
         )
     elif min(abs(v) for v in flat if abs(v) > 0.01) > 0.9:
         print(
-            "  Hint: forces are saturating at ±1 — try raising --k-gain (e.g. --k-gain 500)",
+            "  Hint: forces are saturating at ±1 — try lowering --k-gain (e.g. --k-gain 10)",
             file=sys.stderr,
         )
 
