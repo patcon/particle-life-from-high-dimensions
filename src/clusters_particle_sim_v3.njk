@@ -18,6 +18,7 @@ permalink: clusters_particle_sim_v3.html
         <input type="file" id="cfg-file" accept=".json" style="display:none;"
                onchange="handleConfigFile(this)">
       </label>
+      <button class="cfg-btn" onclick="saveConfig()">save config</button>
 {% endblock %}
 
 {% block script %}
@@ -108,6 +109,28 @@ function loadConfig(cfg) {
       cellState[i][j].locked = false;
   initParticles();
   renderMatrix();
+}
+
+function saveConfig() {
+  const cfg = {
+    nS: nS,
+    mat: mat.slice(0, nS).map(row => row.slice(0, nS)),
+    counts: pps.slice(0, nS),
+    physics: {
+      force: G,
+      damping: DAMPING,
+      rmax: R_MAX,
+      rmin: R_MIN,
+      trail: +document.getElementById('trail-sl').value,
+      oscSpeed: +document.getElementById('osc-sl').value
+    }
+  };
+  const blob = new Blob([JSON.stringify(cfg, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'particle-life-config.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 function handleConfigFile(input) {

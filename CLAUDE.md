@@ -50,6 +50,39 @@ Start with `--n-species 5` — it produces more interesting asymmetric dynamics 
 
 Every label must be co-located with its control in a `<span class="ctrl-pair">` (or `<div class="ctrl-pair">`) so they never line-break separately. The `.ctrl-pair` class is `display: inline-flex; align-items: center; gap: 5px` (defined in `sim-css.njk`). This applies to all controls — in `sim.njk` static HTML and in any dynamically generated control HTML (e.g. `renderMatrix()` speaker section). Never place a bare `<label>` and its `<input>` as sibling flex children without this wrapper.
 
+### Save config format (canonical)
+
+v3 and v4 export a JSON file via the "save config" button. This is the canonical format — the load button and `derive_forces.py` will eventually migrate to it. **Any new force UI must be included in the save output.**
+
+**V3 format:**
+```json
+{
+  "nS": 4,
+  "mat": [[...], ...],
+  "counts": [60, 60, 60, 60],
+  "physics": {
+    "force": 1.8,
+    "damping": 0.88,
+    "rmax": 80,
+    "rmin": 13,
+    "trail": 8,
+    "oscSpeed": 5
+  }
+}
+```
+
+**V4 adds a `speaker` key:**
+```json
+{
+  "speaker": {
+    "rmax": 200,
+    "rmin": 20,
+    "g": 0.5,
+    "reactions": [...]
+  }
+}
+```
+
 ### Trail rendering (v2/v3)
 
 The trail effect uses two canvases: an offscreen `trailCanvas` where particles are drawn and faded via `destination-out` compositing, and the main canvas which always fills a solid `#080808` background before compositing the trail on top. This avoids integer-rounding artifacts where 8-bit pixel values get stuck slightly off the background color when using a semi-transparent `fillRect` fade on a single canvas.
