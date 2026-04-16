@@ -1,5 +1,8 @@
-serve: ## Serve HTML files via local Python HTTP server
-	python3 -m http.server 8000
+build: ## Build site with Eleventy
+	pnpm eleventy
+
+serve: ## Serve site locally with Eleventy dev server
+	pnpm eleventy --serve
 
 prepare-gh: ## Create GitHub repo and enable Pages deployment via Actions
 	@gh repo create $(shell basename $(CURDIR)) --public 2>/dev/null || true
@@ -18,7 +21,7 @@ prepare-gh: ## Create GitHub repo and enable Pages deployment via Actions
 %:
 	@true
 
-.PHONY: help serve prepare-gh
+.PHONY: help build serve prepare-gh
 
 help:
 	@echo 'Usage: make <command>'

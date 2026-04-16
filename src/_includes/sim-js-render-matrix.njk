@@ -1,0 +1,24 @@
+function renderMatrix() {
+  let h = `<table class="mat-table"><thead><tr><th></th>`;
+  for (let j = 0; j < nS; j++)
+    h += `<th><span class="sp-dot" style="background:${COLORS[j]}"></span><span class="sp-label">${NAMES[j]}</span></th>`;
+  h += `</tr></thead><tbody>`;
+  for (let i = 0; i < nS; i++) {
+    h += `<tr><td><span class="sp-dot" style="background:${COLORS[i]}"></span><span class="sp-label">${NAMES[i]}</span></td>`;
+    for (let j = 0; j < nS; j++) {
+      const v = mat[i][j];
+      const lk = cellState[i][j].locked;
+      h += `<td><div class="mat-cell">
+        <input type="range" min="-1" max="1" step="0.05" value="${v}"
+          id="sl-${i}-${j}"
+          style="width:62px;accent-color:${v>0?'#378ADD':'#D85A30'};"
+          oninput="onSlider(${i},${j},+this.value)">
+        <div class="mat-val" id="vd-${i}-${j}">${v>=0?'+':''}${v.toFixed(2)}</div>
+        <button class="lock-btn${lk?' locked':''}" id="lock-${i}-${j}" onclick="toggleLock(${i},${j})">${lk?'locked':'free'}</button>
+      </div></td>`;
+    }
+    h += `</tr>`;
+  }
+  h += `</tbody></table>`;
+  document.getElementById('mat-wrap').innerHTML = h;
+}

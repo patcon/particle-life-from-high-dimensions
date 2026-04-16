@@ -1,0 +1,129 @@
+---
+permalink: clusters_particle_sim_v3.html
+---
+{% extends "sim.njk" %}
+
+{% block title %}Clusters — particle life sim{% endblock %}
+
+{% block extraStyle %}
+  input[type=number] { background: #1a1a1a; border: 0.5px solid #555; color: #ccc; border-radius: 4px; padding: 2px 4px; font-size: 11px; font-family: monospace; }
+  input[type=number]::-webkit-inner-spin-button { opacity: 0.5; }
+  .cfg-btn { background: transparent; border: 0.5px solid #555; color: #ccc; border-radius: 6px; padding: 5px 11px; font-size: 13px; cursor: pointer; }
+  .cfg-btn:hover { background: #222; }
+{% endblock %}
+
+{% block extraControls %}
+      <label for="cfg-file" style="cursor:pointer;">
+        <span class="cfg-btn">load config</span>
+        <input type="file" id="cfg-file" accept=".json" style="display:none;"
+               onchange="handleConfigFile(this)">
+      </label>
+{% endblock %}
+
+{% block script %}
+const CW = 620, CH = 420;
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+{% include "sim-js-two-canvas.njk" %}
+
+let pps = [60, 60, 60, 60, 60];
+
+function initParticles() {
+  particles = [];
+  for (let s = 0; s < nS; s++)
+    for (let k = 0; k < pps[s]; k++)
+      particles.push({x: Math.random()*CW, y: Math.random()*CH, vx:0, vy:0, t:s});
+}
+
+function loop(ts) {
+  const t = ts / 1000;
+  if (running) { updateOscillation(t); step(); draw(); }
+  requestAnimationFrame(loop);
+}
+
+function renderMatrix() {
+  let h = `<table class="mat-table"><thead><tr><th></th>`;
+  for (let j = 0; j < nS; j++)
+    h += `<th><span class="sp-dot" style="background:${COLORS[j]}"></span><span class="sp-label">${NAMES[j]}</span></th>`;
+  h += `</tr>`;
+  h += `<tr><td style="font-size:11px;color:#555;text-align:right;padding-right:6px;">count</td>`;
+  for (let j = 0; j < nS; j++)
+    h += `<td><input type="number" min="1" max="2000" value="${pps[j]}" style="width:52px;"
+      id="cnt-${j}" oninput="onCount(${j},+this.value)"></td>`;
+  h += `</tr></thead><tbody>`;
+  for (let i = 0; i < nS; i++) {
+    h += `<tr><td><span class="sp-dot" style="background:${COLORS[i]}"></span><span class="sp-label">${NAMES[i]}</span></td>`;
+    for (let j = 0; j < nS; j++) {
+      const v = mat[i][j];
+      const lk = cellState[i][j].locked;
+      h += `<td><div class="mat-cell">
+        <input type="range" min="-1" max="1" step="0.05" value="${v}"
+          id="sl-${i}-${j}"
+          style="width:62px;accent-color:${v>0?'#378ADD':'#D85A30'};"
+          oninput="onSlider(${i},${j},+this.value)">
+        <div class="mat-val" id="vd-${i}-${j}">${v>=0?'+':''}${v.toFixed(2)}</div>
+        <button class="lock-btn${lk?' locked':''}" id="lock-${i}-${j}" onclick="toggleLock(${i},${j})">${lk?'locked':'free'}</button>
+      </div></td>`;
+    }
+    h += `</tr>`;
+  }
+  h += `</tbody></table>`;
+  document.getElementById('mat-wrap').innerHTML = h;
+}
+
+function onCount(j, v) {
+  pps[j] = Math.max(1, Math.min(2000, v));
+  initParticles();
+}
+
+function changeSpecies(n) {
+  nS = n;
+  for (let s = 0; s < n; s++) if (!pps[s]) pps[s] = 60;
+  initParticles();
+  renderMatrix();
+}
+
+function loadConfig(cfg) {
+  if (!cfg || typeof cfg.nS !== 'number' || !Array.isArray(cfg.mat)) {
+    alert('Invalid config: missing nS or mat fields.'); return;
+  }
+  const n = cfg.nS;
+  if (n < 2 || n > 5) { alert(`Invalid nS: ${n}. Must be 2–5.`); return; }
+  if (cfg.mat.length < n || cfg.mat.some(row => !Array.isArray(row) || row.length < n)) {
+    alert('Config mat is too small for the specified nS.'); return;
+  }
+  nS = n;
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < n; j++)
+      mat[i][j] = cfg.mat[i][j];
+  if (Array.isArray(cfg.counts) && cfg.counts.length >= n) {
+    for (let s = 0; s < n; s++)
+      pps[s] = cfg.counts[s];
+  }
+  const sel = document.getElementById('sel-n');
+  if (sel) sel.value = String(n);
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < n; j++)
+      cellState[i][j].locked = false;
+  initParticles();
+  renderMatrix();
+}
+
+function handleConfigFile(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try { loadConfig(JSON.parse(e.target.result)); }
+    catch (err) { alert('Failed to parse JSON: ' + err.message); }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+initMatrix();
+initCellState();
+initParticles();
+renderMatrix();
+requestAnimationFrame(loop);
+{% endblock %}

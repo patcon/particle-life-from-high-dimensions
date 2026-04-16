@@ -1,0 +1,37 @@
+---
+permalink: clusters_particle_sim_v2.html
+---
+{% extends "sim.njk" %}
+
+{% block title %}Clusters — particle life sim{% endblock %}
+
+{% block script %}
+const CW = 620, CH = 420;
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+{% include "sim-js-two-canvas.njk" %}
+
+function initParticles() {
+  particles = [];
+  for (let s = 0; s < nS; s++)
+    for (let k = 0; k < 60; k++)
+      particles.push({x: Math.random()*CW, y: Math.random()*CH, vx:0, vy:0, t:s});
+}
+
+function loop(ts) {
+  const t = ts / 1000;
+  if (running) { updateOscillation(t); step(); draw(); }
+  requestAnimationFrame(loop);
+}
+
+{% include "sim-js-render-matrix.njk" %}
+
+function changeSpecies(n) { nS = n; initParticles(); renderMatrix(); }
+
+initMatrix();
+initCellState();
+initParticles();
+renderMatrix();
+requestAnimationFrame(loop);
+{% endblock %}

@@ -1,0 +1,12 @@
+{
+  "name": "particle-life-from-high-dimensions",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "eleventy",
+    "serve": "eleventy --serve"
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "^3.0.0"
+  }
+}

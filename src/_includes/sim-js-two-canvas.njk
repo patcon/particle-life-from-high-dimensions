@@ -1,0 +1,23 @@
+const trailCanvas = document.createElement('canvas');
+trailCanvas.width = CW; trailCanvas.height = CH;
+const tCtx = trailCanvas.getContext('2d');
+
+function draw() {
+  const trail = +document.getElementById('trail-sl').value;
+  // Fade trail canvas toward transparency (avoids integer-rounding artifacts)
+  tCtx.globalCompositeOperation = 'destination-out';
+  tCtx.fillStyle = `rgba(0,0,0,${trail/100})`;
+  tCtx.fillRect(0, 0, CW, CH);
+  tCtx.globalCompositeOperation = 'source-over';
+  // Draw particles onto trail canvas
+  for (const p of particles) {
+    tCtx.fillStyle = COLORS[p.t];
+    tCtx.beginPath();
+    tCtx.arc(p.x, p.y, 2.8, 0, Math.PI*2);
+    tCtx.fill();
+  }
+  // Composite: solid background + trail canvas
+  ctx.fillStyle = '#080808';
+  ctx.fillRect(0, 0, CW, CH);
+  ctx.drawImage(trailCanvas, 0, 0);
+}

@@ -5,17 +5,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development
 
 ```
-make serve       # serves files at http://localhost:8000 via Python HTTP server
+make serve       # builds and serves with Eleventy dev server (pnpm)
+make build       # builds static site into _site/
 make prepare-gh  # create GitHub repo, push, and enable Pages via Actions
 ```
 
 ## Architecture
 
-This repo contains standalone single-file HTML simulations — no build step, no dependencies. Each `.html` file is self-contained with inline CSS and JS.
+This repo uses **Eleventy** (Nunjucks templates) to build standalone HTML simulations. Source lives in `src/`, output goes to `_site/`. GitHub Actions builds and deploys `_site/` to Pages.
 
-- `clusters_particle_sim_v1.html` — original layout (canvas above controls)
-- `clusters_particle_sim_v2.html` — two-column responsive layout (canvas left, controls right at ≥720px); also fixes trail color artifacts via a two-canvas approach
-- `index.html` — simple landing page linking to both versions
+### Source structure
+
+- `src/index.njk` — landing page
+- `src/clusters_particle_sim_v1.njk` — original layout (canvas above controls); extends `base.njk`
+- `src/clusters_particle_sim_v2.njk` — two-column responsive layout; extends `sim.njk`
+- `src/clusters_particle_sim_v3.njk` — v2 + per-species counts + JSON config import; extends `sim.njk`
+
+### Shared includes (`src/_includes/`)
+
+- `base.njk` — HTML skeleton (DOCTYPE, head, body blocks)
+- `sim.njk` — two-column sim layout; extends `base.njk`; defines `extraStyle`, `extraControls`, `script` blocks
+- `sim-css.njk` — shared CSS for all sim pages
+- `sim-js-core.njk` — shared JS: constants, `step()`, `updateOscillation()`, control handlers
+- `sim-js-render-matrix.njk` — shared `renderMatrix()` (v1/v2; v3 defines its own with count row)
+- `sim-js-two-canvas.njk` — offscreen canvas setup + `draw()` used by v2 and v3
 
 ## Data
 
@@ -33,6 +46,6 @@ uv run derive_forces.py --input ~/Downloads/chile-protest-highly-variable-test.h
 
 Start with `--n-species 5` — it produces more interesting asymmetric dynamics than 4. Use `--min-cluster-size 2` so HDBSCAN can find enough clusters; `--k-gain 50` keeps forces from saturating at ±1.
 
-### Trail rendering (v2)
+### Trail rendering (v2/v3)
 
 The trail effect uses two canvases: an offscreen `trailCanvas` where particles are drawn and faded via `destination-out` compositing, and the main canvas which always fills a solid `#080808` background before compositing the trail on top. This avoids integer-rounding artifacts where 8-bit pixel values get stuck slightly off the background color when using a semi-transparent `fillRect` fade on a single canvas.

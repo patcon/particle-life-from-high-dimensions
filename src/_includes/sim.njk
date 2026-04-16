@@ -1,0 +1,58 @@
+{% extends "base.njk" %}
+
+{% block head %}
+<style>
+{% include "sim-css.njk" %}
+  #layout { display: flex; flex-direction: column; gap: 12px; }
+  #left { flex: 1; min-width: 0; }
+  #right { display: flex; flex-direction: column; gap: 10px; }
+  @media (min-width: 720px) {
+    #layout { flex-direction: row; align-items: flex-start; }
+    #left { flex: 1; }
+    #right { width: 310px; flex-shrink: 0; position: sticky; top: 14px; max-height: calc(100vh - 28px); overflow-y: auto; }
+  }
+{% block extraStyle %}{% endblock %}
+</style>
+{% endblock %}
+
+{% block body %}
+<div id="layout">
+  <div id="left">
+    <canvas id="c" width="620" height="420"></canvas>
+  </div>
+  <div id="right">
+    <h1>clusters — particle life</h1>
+
+    <div id="controls">
+      <button id="btn-play" onclick="togglePlay()">pause</button>
+      <button onclick="randomizeMatrix()">randomize</button>
+      <button onclick="initParticles()">reset positions</button>
+      <button id="btn-osc" onclick="toggleOscillate()">oscillate</button>
+      <div class="osc-speed" id="osc-speed">
+        <label>speed</label>
+        <input type="range" min="1" max="20" value="5" step="1" style="width:60px;" id="osc-sl">
+      </div>
+      <label>species</label>
+      <select id="sel-n" onchange="changeSpecies(+this.value)" style="width:52px;">
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4" selected>4</option>
+        <option value="5">5</option>
+      </select>
+      <label>trail</label>
+      <input type="range" min="1" max="30" value="8" step="1" style="width:60px;" id="trail-sl">
+      {% block extraControls %}{% endblock %}
+    </div>
+
+    <div id="mat-section">
+      <div id="mat-wrap"></div>
+      <div id="mat-legend">row = from &nbsp;·&nbsp; col = to &nbsp;·&nbsp; + attracts &nbsp;·&nbsp; − repels</div>
+    </div>
+  </div>
+</div>
+
+<script>
+{% include "sim-js-core.njk" %}
+{% block script %}{% endblock %}
+</script>
+{% endblock %}

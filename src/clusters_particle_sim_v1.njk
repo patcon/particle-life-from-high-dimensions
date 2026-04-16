@@ -1,0 +1,87 @@
+---
+permalink: clusters_particle_sim_v1.html
+---
+{% extends "base.njk" %}
+
+{% block title %}Clusters — particle life sim{% endblock %}
+
+{% block head %}
+<style>
+{% include "sim-css.njk" %}
+</style>
+{% endblock %}
+
+{% block body %}
+<h1>clusters — particle life</h1>
+
+<canvas id="c" width="620" height="360"></canvas>
+
+<div id="controls">
+  <button id="btn-play" onclick="togglePlay()">pause</button>
+  <button onclick="randomizeMatrix()">randomize</button>
+  <button onclick="initParticles()">reset positions</button>
+  <button id="btn-osc" onclick="toggleOscillate()">oscillate</button>
+  <div class="osc-speed" id="osc-speed">
+    <label>speed</label>
+    <input type="range" min="1" max="20" value="5" step="1" style="width:64px;" id="osc-sl">
+  </div>
+  <label style="margin-left:6px;">species</label>
+  <select id="sel-n" onchange="changeSpecies(+this.value)" style="width:52px;">
+    <option value="2">2</option>
+    <option value="3">3</option>
+    <option value="4" selected>4</option>
+    <option value="5">5</option>
+  </select>
+  <label style="margin-left:6px;">trail</label>
+  <input type="range" min="1" max="30" value="8" step="1" style="width:72px;" id="trail-sl">
+</div>
+
+<div id="mat-section">
+  <div id="mat-wrap"></div>
+  <div id="mat-legend">row = from species &nbsp;·&nbsp; col = to (asymmetric) &nbsp;·&nbsp; + attracts &nbsp;·&nbsp; − repels</div>
+</div>
+
+<script>
+const CW = 620, CH = 360;
+const PPS = 60;
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+{% include "sim-js-core.njk" %}
+
+function initParticles() {
+  particles = [];
+  for (let s = 0; s < nS; s++)
+    for (let k = 0; k < PPS; k++)
+      particles.push({x: Math.random()*CW, y: Math.random()*CH, vx:0, vy:0, t:s});
+}
+
+function draw() {
+  const trail = +document.getElementById('trail-sl').value;
+  ctx.fillStyle = `rgba(8,8,8,${trail/100})`;
+  ctx.fillRect(0, 0, CW, CH);
+  for (const p of particles) {
+    ctx.fillStyle = COLORS[p.t];
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2.8, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function loop(ts) {
+  const t = ts / 1000;
+  if (running) { updateOscillation(t); step(); draw(); }
+  requestAnimationFrame(loop);
+}
+
+{% include "sim-js-render-matrix.njk" %}
+
+function changeSpecies(n) { nS = n; initParticles(); renderMatrix(); }
+
+initMatrix();
+initCellState();
+initParticles();
+renderMatrix();
+requestAnimationFrame(loop);
+</script>
+{% endblock %}

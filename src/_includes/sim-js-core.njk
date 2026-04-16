@@ -1,0 +1,101 @@
+const COLORS = ['#D85A30','#378ADD','#1D9E75','#EF9F27','#7F77DD'];
+const NAMES  = ['A','B','C','D','E'];
+const R_MAX = 80, R_MIN = 13, DT = 0.5, DAMPING = 0.88, G = 1.8;
+
+let nS = 4, mat = [], particles = [], running = true, oscillating = false;
+let cellState = [];
+
+function rnd() { return +((Math.random()*2 - 1).toFixed(2)); }
+
+function initMatrix() {
+  mat = Array.from({length: 5}, () => Array.from({length: 5}, rnd));
+}
+
+function initCellState() {
+  cellState = Array.from({length: 5}, () =>
+    Array.from({length: 5}, () => ({
+      phase: Math.random() * Math.PI * 2,
+      freq:  0.3 + Math.random() * 0.9,
+      locked: false
+    }))
+  );
+}
+
+function step() {
+  const n = particles.length;
+  const ax = new Float32Array(n), ay = new Float32Array(n);
+  const RR = R_MAX * R_MAX;
+  for (let i = 0; i < n; i++) {
+    const pi = particles[i];
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue;
+      const pj = particles[j];
+      let dx = pj.x - pi.x, dy = pj.y - pi.y;
+      if (dx >  CW/2) dx -= CW; else if (dx < -CW/2) dx += CW;
+      if (dy >  CH/2) dy -= CH; else if (dy < -CH/2) dy += CH;
+      const r2 = dx*dx + dy*dy;
+      if (r2 < 0.01 || r2 > RR) continue;
+      const r = Math.sqrt(r2);
+      const f = r < R_MIN
+        ? (r / R_MIN - 1)
+        : mat[pi.t][pj.t] * (1 - r / R_MAX);
+      const inv = f * G / r;
+      ax[i] += dx * inv;
+      ay[i] += dy * inv;
+    }
+  }
+  for (let i = 0; i < n; i++) {
+    const p = particles[i];
+    p.vx = (p.vx + ax[i]*DT) * DAMPING;
+    p.vy = (p.vy + ay[i]*DT) * DAMPING;
+    p.x = ((p.x + p.vx*DT) % CW + CW) % CW;
+    p.y = ((p.y + p.vy*DT) % CH + CH) % CH;
+  }
+}
+
+function updateOscillation(t) {
+  if (!oscillating) return;
+  const speed = +document.getElementById('osc-sl').value / 10;
+  for (let i = 0; i < nS; i++) {
+    for (let j = 0; j < nS; j++) {
+      if (cellState[i][j].locked) continue;
+      const v = Math.sin(t * cellState[i][j].freq * speed + cellState[i][j].phase);
+      mat[i][j] = v;
+      const sl = document.getElementById(`sl-${i}-${j}`);
+      const vd = document.getElementById(`vd-${i}-${j}`);
+      if (sl) { sl.value = v; sl.style.accentColor = v > 0 ? '#378ADD' : '#D85A30'; }
+      if (vd) vd.textContent = (v >= 0 ? '+' : '') + v.toFixed(2);
+    }
+  }
+}
+
+function onSlider(i, j, v) {
+  mat[i][j] = v;
+  const vd = document.getElementById(`vd-${i}-${j}`);
+  const sl = document.getElementById(`sl-${i}-${j}`);
+  if (vd) vd.textContent = (v >= 0 ? '+' : '') + v.toFixed(2);
+  if (sl) sl.style.accentColor = v > 0 ? '#378ADD' : '#D85A30';
+  if (oscillating && !cellState[i][j].locked) toggleLock(i, j);
+}
+
+function toggleLock(i, j) {
+  cellState[i][j].locked = !cellState[i][j].locked;
+  const lk = cellState[i][j].locked;
+  const btn = document.getElementById(`lock-${i}-${j}`);
+  if (btn) { btn.textContent = lk ? 'locked' : 'free'; btn.className = 'lock-btn' + (lk ? ' locked' : ''); }
+}
+
+function togglePlay() {
+  running = !running;
+  document.getElementById('btn-play').textContent = running ? 'pause' : 'play';
+}
+
+function toggleOscillate() {
+  oscillating = !oscillating;
+  const btn = document.getElementById('btn-osc');
+  btn.textContent = oscillating ? 'stop oscillating' : 'oscillate';
+  btn.className = oscillating ? 'active' : '';
+  document.getElementById('osc-speed').className = oscillating ? 'osc-speed visible' : 'osc-speed';
+}
+
+function randomizeMatrix() { initMatrix(); initCellState(); renderMatrix(); }
