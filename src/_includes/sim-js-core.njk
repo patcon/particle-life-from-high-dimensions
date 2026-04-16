@@ -1,6 +1,6 @@
 const COLORS = ['#D85A30','#378ADD','#1D9E75','#EF9F27','#7F77DD'];
 const NAMES  = ['A','B','C','D','E'];
-const R_MAX = 80, R_MIN = 13, DT = 0.5, DAMPING = 0.88, G = 1.8;
+let R_MAX = 80, R_MIN = 13, DT = 0.5, DAMPING = 0.88, G = 1.8;
 
 let nS = 4, mat = [], particles = [], running = true, oscillating = false;
 let cellState = [];
