@@ -4,18 +4,45 @@ const tCtx = trailCanvas.getContext('2d');
 
 let _dbgLastT = 0, _dbgFps = 0, _mouseX = null, _mouseY = null;
 let _zoom = 1.0, _viewX = CW/2, _viewY = CH/2, _wrapEdges = true, _lastGestureScale = 1;
+let _dragStart = null;  // {sx, sy, vx, vy} set on mousedown to track click-drag pan
 
 document.addEventListener('DOMContentLoaded', () => {
   const cvs = document.getElementById('c');
+
+  cvs.addEventListener('mousedown', e => {
+    if (_wrapEdges) return;
+    e.preventDefault();
+    const r = cvs.getBoundingClientRect();
+    _dragStart = {
+      sx: (e.clientX - r.left) * (CW / r.width),
+      sy: (e.clientY - r.top)  * (CH / r.height),
+      vx: _viewX, vy: _viewY
+    };
+    cvs.style.cursor = 'grabbing';
+  });
 
   cvs.addEventListener('mousemove', e => {
     const r = cvs.getBoundingClientRect();
     const sx = (e.clientX - r.left) * (CW / r.width);
     const sy = (e.clientY - r.top)  * (CH / r.height);
+    if (_dragStart) {
+      _viewX = _dragStart.vx - (sx - _dragStart.sx) / _zoom;
+      _viewY = _dragStart.vy - (sy - _dragStart.sy) / _zoom;
+    }
     _mouseX = _wrapEdges ? sx : _viewX + (sx - CW/2) / _zoom;
     _mouseY = _wrapEdges ? sy : _viewY + (sy - CH/2) / _zoom;
   });
+
+  document.addEventListener('mouseup', () => {
+    if (_dragStart) {
+      _dragStart = null;
+      cvs.style.cursor = 'grab';
+    }
+  });
+
   cvs.addEventListener('mouseleave', () => { _mouseX = null; _mouseY = null; });
+
+  cvs.style.cursor = _wrapEdges ? '' : 'grab';
 
   cvs.addEventListener('wheel', e => {
     if (_wrapEdges) return;
@@ -60,6 +87,9 @@ function toggleWrapEdges() {
     }
     _zoom = 1.0; _viewX = CW/2; _viewY = CH/2;
   }
+  _dragStart = null;
+  const cvs = document.getElementById('c');
+  if (cvs) cvs.style.cursor = _wrapEdges ? '' : 'grab';
   const btn = document.getElementById('btn-wrap');
   if (btn) btn.className = _wrapEdges ? 'active' : '';
 }
