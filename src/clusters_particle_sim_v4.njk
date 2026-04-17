@@ -115,28 +115,55 @@ function draw() {
   tCtx.fillStyle = `rgba(0,0,0,${trail/100})`;
   tCtx.fillRect(0, 0, CW, CH);
   tCtx.globalCompositeOperation = 'source-over';
+
+  // Draw regular particles with zoom/pan transform + 3x3 tiling for toroidal wrap
+  tCtx.save();
+  tCtx.translate(CW / 2 - _viewX * _zoom, CH / 2 - _viewY * _zoom);
+  tCtx.scale(_zoom, _zoom);
+  const pr = 2.8 / _zoom;
   for (const p of particles) {
-    if (p.t === S_IDX) continue;  // speaker rendered separately, no trail
+    if (p.t === S_IDX) continue;
     tCtx.fillStyle = COLORS[p.t];
-    tCtx.beginPath();
-    tCtx.arc(p.x, p.y, 2.8, 0, Math.PI*2);
-    tCtx.fill();
+    for (let tx = -1; tx <= 1; tx++) {
+      for (let ty = -1; ty <= 1; ty++) {
+        tCtx.beginPath();
+        tCtx.arc(p.x + tx * CW, p.y + ty * CH, pr, 0, Math.PI * 2);
+        tCtx.fill();
+      }
+    }
   }
+  tCtx.restore();
+
   ctx.fillStyle = '#080808';
   ctx.fillRect(0, 0, CW, CH);
   ctx.drawImage(trailCanvas, 0, 0);
 
-  // Draw speaker on main canvas each frame (always centered, no trail)
+  // Draw speaker on main canvas (zoomed, no trail)
   const sp = particles[particles.length - 1];
+  ctx.save();
+  ctx.translate(CW / 2 - _viewX * _zoom, CH / 2 - _viewY * _zoom);
+  ctx.scale(_zoom, _zoom);
   ctx.beginPath();
-  ctx.arc(sp.x, sp.y, 10, 0, Math.PI*2);
+  ctx.arc(sp.x, sp.y, 10 / _zoom, 0, Math.PI * 2);
   ctx.strokeStyle = 'rgba(255,215,0,0.3)';
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 3 / _zoom;
   ctx.stroke();
   ctx.beginPath();
-  ctx.arc(sp.x, sp.y, 6, 0, Math.PI*2);
+  ctx.arc(sp.x, sp.y, 6 / _zoom, 0, Math.PI * 2);
   ctx.fillStyle = S_COLOR;
   ctx.fill();
+  ctx.restore();
+
+  // Zoom indicator
+  if (_zoom !== 1.0) {
+    const label = `${_zoom.toFixed(2)}x  dbl-click to reset`;
+    ctx.font = '11px monospace';
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(CW - tw - 14, CH - 22, tw + 10, 18);
+    ctx.fillStyle = '#378ADD';
+    ctx.fillText(label, CW - tw - 9, CH - 8);
+  }
 
   if (debug) {
     const toAnnotate = new Set();
@@ -149,31 +176,43 @@ function draw() {
       let nearest = null, best = Infinity;
       for (const p of particles) {
         if (p.t === S_IDX) continue;
-        const d2 = (p.x-_mouseX)**2 + (p.y-_mouseY)**2;
+        let dx = p.x - _mouseX, dy = p.y - _mouseY;
+        if (dx >  CW / 2) dx -= CW; else if (dx < -CW / 2) dx += CW;
+        if (dy >  CH / 2) dy -= CH; else if (dy < -CH / 2) dy += CH;
+        const d2 = dx * dx + dy * dy;
         if (d2 < best) { best = d2; nearest = p; }
       }
       if (nearest) toAnnotate.add(nearest);
     }
-    ctx.lineWidth = 1;
+
+    ctx.save();
+    ctx.translate(CW / 2 - _viewX * _zoom, CH / 2 - _viewY * _zoom);
+    ctx.scale(_zoom, _zoom);
+    ctx.lineWidth = 1 / _zoom;
     for (const p of toAnnotate) {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, R_MAX, 0, Math.PI*2);
-      ctx.strokeStyle = 'rgba(34,197,94,0.25)';
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, R_MIN, 0, Math.PI*2);
-      ctx.strokeStyle = 'rgba(216,90,48,0.55)';
-      ctx.stroke();
+      for (let tx = -1; tx <= 1; tx++) {
+        for (let ty = -1; ty <= 1; ty++) {
+          ctx.beginPath();
+          ctx.arc(p.x + tx * CW, p.y + ty * CH, R_MAX, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(34,197,94,0.25)';
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(p.x + tx * CW, p.y + ty * CH, R_MIN, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(216,90,48,0.55)';
+          ctx.stroke();
+        }
+      }
     }
     // Speaker radii always shown in debug mode
     ctx.beginPath();
-    ctx.arc(sp.x, sp.y, S_RMAX, 0, Math.PI*2);
+    ctx.arc(sp.x, sp.y, S_RMAX, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(255,215,0,0.2)';
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(sp.x, sp.y, S_RMIN, 0, Math.PI*2);
+    ctx.arc(sp.x, sp.y, S_RMIN, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(255,215,0,0.5)';
     ctx.stroke();
+    ctx.restore();
 
     const now = performance.now();
     if (_dbgLastT) _dbgFps = _dbgFps * 0.9 + (1000 / (now - _dbgLastT)) * 0.1;
@@ -181,6 +220,7 @@ function draw() {
     const lines = [
       `fps    ${_dbgFps.toFixed(1)}`,
       `n      ${particles.length - 1}`,
+      `zoom   ${_zoom.toFixed(2)}x`,
       `force  ${G.toFixed(2)}`,
       `damp   ${DAMPING.toFixed(2)}`,
       `r-max  ${R_MAX}`,

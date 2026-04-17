@@ -30,6 +30,11 @@
       <button onclick="initParticles()">reset positions</button>
       <button onclick="resetSettings()">reset settings</button>
       <button id="btn-osc" onclick="toggleOscillate()">oscillate</button>
+      <span class="ctrl-pair">
+        <button onclick="zoomOut()" title="Zoom out">−</button>
+        <button onclick="zoomReset()" title="Reset zoom" id="btn-zoom">1×</button>
+        <button onclick="zoomIn()" title="Zoom in">+</button>
+      </span>
       <div class="osc-speed ctrl-pair" id="osc-speed">
         <label>speed</label>
         <input type="range" min="1" max="20" value="5" step="1" style="width:60px;" id="osc-sl">

@@ -3,16 +3,78 @@ trailCanvas.width = CW; trailCanvas.height = CH;
 const tCtx = trailCanvas.getContext('2d');
 
 let _dbgLastT = 0, _dbgFps = 0, _mouseX = null, _mouseY = null;
+let _zoom = 1.0, _viewX = CW / 2, _viewY = CH / 2, _lastGestureScale = 1;
 
 document.addEventListener('DOMContentLoaded', () => {
   const cvs = document.getElementById('c');
+
   cvs.addEventListener('mousemove', e => {
     const r = cvs.getBoundingClientRect();
-    _mouseX = (e.clientX - r.left) * (CW / r.width);
-    _mouseY = (e.clientY - r.top)  * (CH / r.height);
+    const sx = (e.clientX - r.left) * (CW / r.width);
+    const sy = (e.clientY - r.top)  * (CH / r.height);
+    // Convert screen coords to world coords
+    _mouseX = _viewX + (sx - CW / 2) / _zoom;
+    _mouseY = _viewY + (sy - CH / 2) / _zoom;
+    if (_dragging) {
+      _viewX = _dragViewX0 - (sx - _dragSX0) / _zoom;
+      _viewY = _dragViewY0 - (sy - _dragSY0) / _zoom;
+      // Wrap view position to stay within one world tile
+      _viewX = ((_viewX % CW) + CW) % CW;
+      _viewY = ((_viewY % CH) + CH) % CH;
+    }
   });
-  cvs.addEventListener('mouseleave', () => { _mouseX = null; _mouseY = null; });
+  cvs.addEventListener('mouseleave', () => {
+    _mouseX = null; _mouseY = null; _dragging = false;
+  });
+
+  cvs.addEventListener('wheel', e => {
+    e.preventDefault();
+    const r = cvs.getBoundingClientRect();
+    const sx = (e.clientX - r.left) * (CW / r.width);
+    const sy = (e.clientY - r.top)  * (CH / r.height);
+    // World position under cursor before zoom
+    const wx = _viewX + (sx - CW / 2) / _zoom;
+    const wy = _viewY + (sy - CH / 2) / _zoom;
+    _zoom = Math.max(0.5, Math.min(10, _zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)));
+    // Adjust view so the world position under cursor stays fixed
+    _viewX = (((wx - (sx - CW / 2) / _zoom) % CW) + CW) % CW;
+    _viewY = (((wy - (sy - CH / 2) / _zoom) % CH) + CH) % CH;
+  }, { passive: false });
+
+  let _dragging = false, _dragSX0, _dragSY0, _dragViewX0, _dragViewY0;
+  cvs.addEventListener('mousedown', e => {
+    _dragging = true;
+    const r = cvs.getBoundingClientRect();
+    _dragSX0    = (e.clientX - r.left) * (CW / r.width);
+    _dragSY0    = (e.clientY - r.top)  * (CH / r.height);
+    _dragViewX0 = _viewX;
+    _dragViewY0 = _viewY;
+  });
+  cvs.addEventListener('mouseup', () => { _dragging = false; });
+
+  cvs.addEventListener('dblclick', () => { zoomReset(); });
+
+  // Safari trackpad pinch (fires gesturechange, not wheel)
+  cvs.addEventListener('gesturestart', e => { e.preventDefault(); _lastGestureScale = 1; });
+  cvs.addEventListener('gesturechange', e => {
+    e.preventDefault();
+    const r = cvs.getBoundingClientRect();
+    const sx = (e.clientX - r.left) * (CW / r.width);
+    const sy = (e.clientY - r.top)  * (CH / r.height);
+    const wx = _viewX + (sx - CW / 2) / _zoom;
+    const wy = _viewY + (sy - CH / 2) / _zoom;
+    const factor = e.scale / _lastGestureScale;
+    _lastGestureScale = e.scale;
+    _zoom = Math.max(0.5, Math.min(10, _zoom * factor));
+    _viewX = (((wx - (sx - CW / 2) / _zoom) % CW) + CW) % CW;
+    _viewY = (((wy - (sy - CH / 2) / _zoom) % CH) + CH) % CH;
+  });
+  cvs.addEventListener('gestureend', e => { e.preventDefault(); });
 });
+
+function zoomIn()    { _zoom = Math.min(10,  _zoom * 1.25); }
+function zoomOut()   { _zoom = Math.max(0.5, _zoom / 1.25); }
+function zoomReset() { _zoom = 1.0; _viewX = CW / 2; _viewY = CH / 2; }
 
 function draw() {
   const trail = +document.getElementById('trail-sl').value;
@@ -21,17 +83,39 @@ function draw() {
   tCtx.fillStyle = `rgba(0,0,0,${trail/100})`;
   tCtx.fillRect(0, 0, CW, CH);
   tCtx.globalCompositeOperation = 'source-over';
-  // Draw particles onto trail canvas
+
+  // Draw particles onto trail canvas with zoom/pan transform + 3x3 tiling for toroidal wrap
+  tCtx.save();
+  tCtx.translate(CW / 2 - _viewX * _zoom, CH / 2 - _viewY * _zoom);
+  tCtx.scale(_zoom, _zoom);
+  const pr = 2.8 / _zoom; // keep dot radius constant in screen pixels
   for (const p of particles) {
     tCtx.fillStyle = COLORS[p.t];
-    tCtx.beginPath();
-    tCtx.arc(p.x, p.y, 2.8, 0, Math.PI*2);
-    tCtx.fill();
+    for (let tx = -1; tx <= 1; tx++) {
+      for (let ty = -1; ty <= 1; ty++) {
+        tCtx.beginPath();
+        tCtx.arc(p.x + tx * CW, p.y + ty * CH, pr, 0, Math.PI * 2);
+        tCtx.fill();
+      }
+    }
   }
+  tCtx.restore();
+
   // Composite: solid background + trail canvas
   ctx.fillStyle = '#080808';
   ctx.fillRect(0, 0, CW, CH);
   ctx.drawImage(trailCanvas, 0, 0);
+
+  // Zoom indicator (bottom-right; visible whenever zoomed)
+  if (_zoom !== 1.0) {
+    const label = `${_zoom.toFixed(2)}x  dbl-click to reset`;
+    ctx.font = '11px monospace';
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(CW - tw - 14, CH - 22, tw + 10, 18);
+    ctx.fillStyle = '#378ADD';
+    ctx.fillText(label, CW - tw - 9, CH - 8);
+  }
 
   if (debug) {
     // Collect particles to annotate: first 5 per species + nearest to mouse
@@ -43,22 +127,35 @@ function draw() {
     if (_mouseX !== null) {
       let nearest = null, best = Infinity;
       for (const p of particles) {
-        const d2 = (p.x-_mouseX)**2 + (p.y-_mouseY)**2;
+        let dx = p.x - _mouseX, dy = p.y - _mouseY;
+        if (dx >  CW / 2) dx -= CW; else if (dx < -CW / 2) dx += CW;
+        if (dy >  CH / 2) dy -= CH; else if (dy < -CH / 2) dy += CH;
+        const d2 = dx * dx + dy * dy;
         if (d2 < best) { best = d2; nearest = p; }
       }
       if (nearest) toAnnotate.add(nearest);
     }
-    ctx.lineWidth = 1;
+
+    // Draw debug circles in world space (same transform as particles)
+    ctx.save();
+    ctx.translate(CW / 2 - _viewX * _zoom, CH / 2 - _viewY * _zoom);
+    ctx.scale(_zoom, _zoom);
+    ctx.lineWidth = 1 / _zoom;
     for (const p of toAnnotate) {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, R_MAX, 0, Math.PI*2);
-      ctx.strokeStyle = 'rgba(34,197,94,0.25)';
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, R_MIN, 0, Math.PI*2);
-      ctx.strokeStyle = 'rgba(216,90,48,0.55)';
-      ctx.stroke();
+      for (let tx = -1; tx <= 1; tx++) {
+        for (let ty = -1; ty <= 1; ty++) {
+          ctx.beginPath();
+          ctx.arc(p.x + tx * CW, p.y + ty * CH, R_MAX, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(34,197,94,0.25)';
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(p.x + tx * CW, p.y + ty * CH, R_MIN, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(216,90,48,0.55)';
+          ctx.stroke();
+        }
+      }
     }
+    ctx.restore();
 
     const now = performance.now();
     if (_dbgLastT) _dbgFps = _dbgFps * 0.9 + (1000 / (now - _dbgLastT)) * 0.1;
@@ -66,6 +163,7 @@ function draw() {
     const lines = [
       `fps    ${_dbgFps.toFixed(1)}`,
       `n      ${particles.length}`,
+      `zoom   ${_zoom.toFixed(2)}x`,
       `force  ${G.toFixed(2)}`,
       `damp   ${DAMPING.toFixed(2)}`,
       `r-max  ${R_MAX}`,
