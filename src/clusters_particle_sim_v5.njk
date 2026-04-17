@@ -32,14 +32,28 @@ const ctx = canvas.getContext('2d');
 // Speaker particle constants
 const S_IDX   = 5;
 const S_COLOR = '#FFD700';
-let S_RMAX = 200, S_RMIN = 20, S_G = 0.5;
-let S_BWIDTH = 40, S_BG = 1.0;  // boundary repulsion zone width and gain
+let S_RMAX = 185, S_RMIN = 41, S_G = 1.8;
+let S_BWIDTH = 200, S_BG = 5.0;  // boundary repulsion zone width and gain
 
 {% include "sim-js-two-canvas.njk" %}
+_wrapEdges = false;  // off by default in v5
 
 // Shadow initMatrix/initCellState: expand to 6×6 to accommodate S_IDX=5
 function initMatrix() {
   mat = Array.from({length: 6}, () => Array.from({length: 6}, rnd));
+  // default values from saved config
+  const m = [
+    [ 0.2,                   -0.9722984882147189, -0.6877559530050963,  0.34734453909724045],
+    [ 0.7418364847188621,     0.2,                -0.2437233489655584,  0.7871174411477312 ],
+    [-0.9804927235880276,    -0.8788072226766251,  0.2,                -0.696584109033869  ],
+    [-0.9907772793052596,    -0.48993913115382454,-0.5673200198028343,  0.2                ]
+  ];
+  for (let i = 0; i < 4; i++)
+    for (let j = 0; j < 4; j++)
+      mat[i][j] = m[i][j];
+  const sr = [0.5723169468168758, -0.5339098463092371, -0.6390726284384954, -0.6948059906030024];
+  for (let i = 0; i < 4; i++)
+    mat[i][S_IDX] = sr[i];
 }
 
 function initCellState() {
@@ -50,6 +64,9 @@ function initCellState() {
       locked: false
     }))
   );
+  // lock diagonal (self-interactions) for active species
+  for (let i = 0; i < 4; i++)
+    cellState[i][i].locked = true;
 }
 
 // Shadow step(): two-pass — regular pairs first, then speaker forces
@@ -314,8 +331,8 @@ function randomizeMatrix() {
 
 // Shadow resetSettings: also reset speaker params and rebuild speaker sliders
 function resetSettings() {
-  R_MAX = 80; R_MIN = 13; DT = 0.5; DAMPING = 0.88; G = 1.8;
-  S_RMAX = 200; S_RMIN = 20; S_G = 0.5; S_BWIDTH = 40; S_BG = 1.0;
+  R_MAX = 80; R_MIN = 13; DT = 0.5; DAMPING = 0.56; G = 2;
+  S_RMAX = 185; S_RMIN = 41; S_G = 1.8; S_BWIDTH = 200; S_BG = 5.0;
   document.getElementById('g-sl').value     = G;
   document.getElementById('damp-sl').value  = DAMPING;
   document.getElementById('rmax-sl').value  = R_MAX;
@@ -518,9 +535,17 @@ function handleConfigFile(input) {
   input.value = '';
 }
 
+// Apply default physics overrides for v5
+G = 2; DAMPING = 0.56;
+
 initMatrix();
 initCellState();
 initParticles();
 renderMatrix();
+// Apply default slider values from saved config
+document.getElementById('trail-sl').value = 30;
+document.getElementById('osc-sl').value   = 5;
+// Reflect wrap-edges-off in button state
+document.getElementById('btn-wrap').className = '';
 requestAnimationFrame(loop);
 {% endblock %}
