@@ -438,15 +438,45 @@ function renderMatrix() {
   document.getElementById('mat-wrap').innerHTML = h;
 }
 
+function spawnParticles(type, count) {
+  const spawnR = S_RMAX / 2;
+  const sp = particles[particles.length - 1];
+  const cx = sp ? sp.x : CW / 2;
+  const cy = sp ? sp.y : CH / 2;
+  for (let k = 0; k < count; k++) {
+    const angle = Math.random() * Math.PI * 2;
+    const r = Math.random() * spawnR;
+    particles.splice(particles.length - 1, 0,
+      {x: cx + Math.cos(angle)*r, y: cy + Math.sin(angle)*r, vx:0, vy:0, t: type});
+  }
+}
+
 function onCount(j, v) {
-  pps[j] = Math.max(1, Math.min(2000, v));
-  initParticles();
+  const target = Math.max(1, Math.min(2000, v));
+  const current = particles.filter(p => p.t === j).length;
+  if (target > current) {
+    spawnParticles(j, target - current);
+  } else if (target < current) {
+    let toRemove = current - target;
+    for (let i = particles.length - 2; i >= 0 && toRemove > 0; i--) {
+      if (particles[i].t === j) { particles.splice(i, 1); toRemove--; }
+    }
+  }
+  pps[j] = target;
 }
 
 function changeSpecies(n) {
+  if (n > nS) {
+    for (let s = nS; s < n; s++) {
+      if (!pps[s]) pps[s] = 60;
+      spawnParticles(s, pps[s]);
+    }
+  } else if (n < nS) {
+    for (let s = n; s < nS; s++)
+      for (let i = particles.length - 2; i >= 0; i--)
+        if (particles[i].t === s) particles.splice(i, 1);
+  }
   nS = n;
-  for (let s = 0; s < n; s++) if (!pps[s]) pps[s] = 60;
-  initParticles();
   renderMatrix();
 }
 
