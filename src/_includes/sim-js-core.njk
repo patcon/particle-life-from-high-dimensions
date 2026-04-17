@@ -36,8 +36,8 @@ function step() {
       if (i === j) continue;
       const pj = particles[j];
       let dx = pj.x - pi.x, dy = pj.y - pi.y;
-      if (dx >  CW/2) dx -= CW; else if (dx < -CW/2) dx += CW;
-      if (dy >  CH/2) dy -= CH; else if (dy < -CH/2) dy += CH;
+      if (dx >  _worldW/2) dx -= _worldW; else if (dx < -_worldW/2) dx += _worldW;
+      if (dy >  _worldH/2) dy -= _worldH; else if (dy < -_worldH/2) dy += _worldH;
       const r2 = dx*dx + dy*dy;
       if (r2 < 0.01 || r2 > RR) continue;
       const r = Math.sqrt(r2);
@@ -53,8 +53,8 @@ function step() {
     const p = particles[i];
     p.vx = (p.vx + ax[i]*DT) * DAMPING;
     p.vy = (p.vy + ay[i]*DT) * DAMPING;
-    p.x = ((p.x + p.vx*DT) % CW + CW) % CW;
-    p.y = ((p.y + p.vy*DT) % CH + CH) % CH;
+    p.x = ((p.x + p.vx*DT) % _worldW + _worldW) % _worldW;
+    p.y = ((p.y + p.vy*DT) % _worldH + _worldH) % _worldH;
   }
 }
 

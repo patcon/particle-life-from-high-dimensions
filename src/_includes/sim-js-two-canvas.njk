@@ -3,54 +3,22 @@ trailCanvas.width = CW; trailCanvas.height = CH;
 const tCtx = trailCanvas.getContext('2d');
 
 let _dbgLastT = 0, _dbgFps = 0, _mouseX = null, _mouseY = null;
-let _zoom = 1.0, _viewX = CW / 2, _viewY = CH / 2, _lastGestureScale = 1;
+let _zoom = 1.0, _worldW = CW, _worldH = CH, _lastGestureScale = 1;
 
 document.addEventListener('DOMContentLoaded', () => {
   const cvs = document.getElementById('c');
 
   cvs.addEventListener('mousemove', e => {
     const r = cvs.getBoundingClientRect();
-    const sx = (e.clientX - r.left) * (CW / r.width);
-    const sy = (e.clientY - r.top)  * (CH / r.height);
-    // Convert screen coords to world coords
-    _mouseX = _viewX + (sx - CW / 2) / _zoom;
-    _mouseY = _viewY + (sy - CH / 2) / _zoom;
-    if (_dragging) {
-      _viewX = _dragViewX0 - (sx - _dragSX0) / _zoom;
-      _viewY = _dragViewY0 - (sy - _dragSY0) / _zoom;
-      // Wrap view position to stay within one world tile
-      _viewX = ((_viewX % CW) + CW) % CW;
-      _viewY = ((_viewY % CH) + CH) % CH;
-    }
+    _mouseX = (e.clientX - r.left) * (CW / r.width)  / _zoom;
+    _mouseY = (e.clientY - r.top)  * (CH / r.height) / _zoom;
   });
-  cvs.addEventListener('mouseleave', () => {
-    _mouseX = null; _mouseY = null; _dragging = false;
-  });
+  cvs.addEventListener('mouseleave', () => { _mouseX = null; _mouseY = null; });
 
   cvs.addEventListener('wheel', e => {
     e.preventDefault();
-    const r = cvs.getBoundingClientRect();
-    const sx = (e.clientX - r.left) * (CW / r.width);
-    const sy = (e.clientY - r.top)  * (CH / r.height);
-    // World position under cursor before zoom
-    const wx = _viewX + (sx - CW / 2) / _zoom;
-    const wy = _viewY + (sy - CH / 2) / _zoom;
-    _zoom = Math.max(0.5, Math.min(10, _zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)));
-    // Adjust view so the world position under cursor stays fixed
-    _viewX = (((wx - (sx - CW / 2) / _zoom) % CW) + CW) % CW;
-    _viewY = (((wy - (sy - CH / 2) / _zoom) % CH) + CH) % CH;
+    _applyZoom(_zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
   }, { passive: false });
-
-  let _dragging = false, _dragSX0, _dragSY0, _dragViewX0, _dragViewY0;
-  cvs.addEventListener('mousedown', e => {
-    _dragging = true;
-    const r = cvs.getBoundingClientRect();
-    _dragSX0    = (e.clientX - r.left) * (CW / r.width);
-    _dragSY0    = (e.clientY - r.top)  * (CH / r.height);
-    _dragViewX0 = _viewX;
-    _dragViewY0 = _viewY;
-  });
-  cvs.addEventListener('mouseup', () => { _dragging = false; });
 
   cvs.addEventListener('dblclick', () => { zoomReset(); });
 
@@ -58,23 +26,30 @@ document.addEventListener('DOMContentLoaded', () => {
   cvs.addEventListener('gesturestart', e => { e.preventDefault(); _lastGestureScale = 1; });
   cvs.addEventListener('gesturechange', e => {
     e.preventDefault();
-    const r = cvs.getBoundingClientRect();
-    const sx = (e.clientX - r.left) * (CW / r.width);
-    const sy = (e.clientY - r.top)  * (CH / r.height);
-    const wx = _viewX + (sx - CW / 2) / _zoom;
-    const wy = _viewY + (sy - CH / 2) / _zoom;
     const factor = e.scale / _lastGestureScale;
     _lastGestureScale = e.scale;
-    _zoom = Math.max(0.5, Math.min(10, _zoom * factor));
-    _viewX = (((wx - (sx - CW / 2) / _zoom) % CW) + CW) % CW;
-    _viewY = (((wy - (sy - CH / 2) / _zoom) % CH) + CH) % CH;
+    _applyZoom(_zoom * factor);
   });
   cvs.addEventListener('gestureend', e => { e.preventDefault(); });
 });
 
-function zoomIn()    { _zoom = Math.min(10,  _zoom * 1.25); }
-function zoomOut()   { _zoom = Math.max(0.5, _zoom / 1.25); }
-function zoomReset() { _zoom = 1.0; _viewX = CW / 2; _viewY = CH / 2; }
+function _applyZoom(newZoom) {
+  newZoom = Math.max(0.1, Math.min(10, newZoom));
+  if (newZoom === _zoom) return;
+  // Scale all particle positions proportionally so screen positions are preserved
+  const ratio = _zoom / newZoom;
+  for (const p of particles) {
+    p.x *= ratio;
+    p.y *= ratio;
+  }
+  _zoom = newZoom;
+  _worldW = CW / _zoom;
+  _worldH = CH / _zoom;
+}
+
+function zoomIn()    { _applyZoom(_zoom * 1.25); }
+function zoomOut()   { _applyZoom(_zoom / 1.25); }
+function zoomReset() { _applyZoom(1.0); }
 
 function draw() {
   const trail = +document.getElementById('trail-sl').value;
@@ -84,20 +59,15 @@ function draw() {
   tCtx.fillRect(0, 0, CW, CH);
   tCtx.globalCompositeOperation = 'source-over';
 
-  // Draw particles onto trail canvas with zoom/pan transform + 3x3 tiling for toroidal wrap
+  // Draw particles onto trail canvas — world always fills canvas exactly, no tiling needed
   tCtx.save();
-  tCtx.translate(CW / 2 - _viewX * _zoom, CH / 2 - _viewY * _zoom);
   tCtx.scale(_zoom, _zoom);
   const pr = 2.8 / _zoom; // keep dot radius constant in screen pixels
   for (const p of particles) {
     tCtx.fillStyle = COLORS[p.t];
-    for (let tx = -1; tx <= 1; tx++) {
-      for (let ty = -1; ty <= 1; ty++) {
-        tCtx.beginPath();
-        tCtx.arc(p.x + tx * CW, p.y + ty * CH, pr, 0, Math.PI * 2);
-        tCtx.fill();
-      }
-    }
+    tCtx.beginPath();
+    tCtx.arc(p.x, p.y, pr, 0, Math.PI * 2);
+    tCtx.fill();
   }
   tCtx.restore();
 
@@ -128,32 +98,27 @@ function draw() {
       let nearest = null, best = Infinity;
       for (const p of particles) {
         let dx = p.x - _mouseX, dy = p.y - _mouseY;
-        if (dx >  CW / 2) dx -= CW; else if (dx < -CW / 2) dx += CW;
-        if (dy >  CH / 2) dy -= CH; else if (dy < -CH / 2) dy += CH;
+        if (dx >  _worldW / 2) dx -= _worldW; else if (dx < -_worldW / 2) dx += _worldW;
+        if (dy >  _worldH / 2) dy -= _worldH; else if (dy < -_worldH / 2) dy += _worldH;
         const d2 = dx * dx + dy * dy;
         if (d2 < best) { best = d2; nearest = p; }
       }
       if (nearest) toAnnotate.add(nearest);
     }
 
-    // Draw debug circles in world space (same transform as particles)
+    // Draw debug circles in world space
     ctx.save();
-    ctx.translate(CW / 2 - _viewX * _zoom, CH / 2 - _viewY * _zoom);
     ctx.scale(_zoom, _zoom);
     ctx.lineWidth = 1 / _zoom;
     for (const p of toAnnotate) {
-      for (let tx = -1; tx <= 1; tx++) {
-        for (let ty = -1; ty <= 1; ty++) {
-          ctx.beginPath();
-          ctx.arc(p.x + tx * CW, p.y + ty * CH, R_MAX, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(34,197,94,0.25)';
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.arc(p.x + tx * CW, p.y + ty * CH, R_MIN, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(216,90,48,0.55)';
-          ctx.stroke();
-        }
-      }
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, R_MAX, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(34,197,94,0.25)';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, R_MIN, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(216,90,48,0.55)';
+      ctx.stroke();
     }
     ctx.restore();
 

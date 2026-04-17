@@ -34,7 +34,7 @@ function initParticles() {
   particles = [];
   for (let s = 0; s < nS; s++)
     for (let k = 0; k < pps[s]; k++)
-      particles.push({x: Math.random()*CW, y: Math.random()*CH, vx:0, vy:0, t:s});
+      particles.push({x: Math.random()*_worldW, y: Math.random()*_worldH, vx:0, vy:0, t:s});
 }
 
 function loop(ts) {

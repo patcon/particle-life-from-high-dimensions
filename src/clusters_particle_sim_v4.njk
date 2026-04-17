@@ -66,8 +66,8 @@ function step() {
       const pj = particles[j];
       if (pj.t === S_IDX) continue;
       let dx = pj.x - pi.x, dy = pj.y - pi.y;
-      if (dx >  CW/2) dx -= CW; else if (dx < -CW/2) dx += CW;
-      if (dy >  CH/2) dy -= CH; else if (dy < -CH/2) dy += CH;
+      if (dx >  _worldW/2) dx -= _worldW; else if (dx < -_worldW/2) dx += _worldW;
+      if (dy >  _worldH/2) dy -= _worldH; else if (dy < -_worldH/2) dy += _worldH;
       const r2 = dx*dx + dy*dy;
       if (r2 < 0.01 || r2 > RR) continue;
       const r = Math.sqrt(r2);
@@ -103,8 +103,8 @@ function step() {
     if (p.t === S_IDX) continue;
     p.vx = (p.vx + ax[i]*DT) * DAMPING;
     p.vy = (p.vy + ay[i]*DT) * DAMPING;
-    p.x = ((p.x + p.vx*DT) % CW + CW) % CW;
-    p.y = ((p.y + p.vy*DT) % CH + CH) % CH;
+    p.x = ((p.x + p.vx*DT) % _worldW + _worldW) % _worldW;
+    p.y = ((p.y + p.vy*DT) % _worldH + _worldH) % _worldH;
   }
 }
 
@@ -116,21 +116,16 @@ function draw() {
   tCtx.fillRect(0, 0, CW, CH);
   tCtx.globalCompositeOperation = 'source-over';
 
-  // Draw regular particles with zoom/pan transform + 3x3 tiling for toroidal wrap
+  // Draw regular particles — world always fills canvas exactly, no tiling needed
   tCtx.save();
-  tCtx.translate(CW / 2 - _viewX * _zoom, CH / 2 - _viewY * _zoom);
   tCtx.scale(_zoom, _zoom);
   const pr = 2.8 / _zoom;
   for (const p of particles) {
     if (p.t === S_IDX) continue;
     tCtx.fillStyle = COLORS[p.t];
-    for (let tx = -1; tx <= 1; tx++) {
-      for (let ty = -1; ty <= 1; ty++) {
-        tCtx.beginPath();
-        tCtx.arc(p.x + tx * CW, p.y + ty * CH, pr, 0, Math.PI * 2);
-        tCtx.fill();
-      }
-    }
+    tCtx.beginPath();
+    tCtx.arc(p.x, p.y, pr, 0, Math.PI * 2);
+    tCtx.fill();
   }
   tCtx.restore();
 
@@ -138,10 +133,9 @@ function draw() {
   ctx.fillRect(0, 0, CW, CH);
   ctx.drawImage(trailCanvas, 0, 0);
 
-  // Draw speaker on main canvas (zoomed, no trail)
+  // Draw speaker on main canvas (no trail)
   const sp = particles[particles.length - 1];
   ctx.save();
-  ctx.translate(CW / 2 - _viewX * _zoom, CH / 2 - _viewY * _zoom);
   ctx.scale(_zoom, _zoom);
   ctx.beginPath();
   ctx.arc(sp.x, sp.y, 10 / _zoom, 0, Math.PI * 2);
@@ -177,8 +171,8 @@ function draw() {
       for (const p of particles) {
         if (p.t === S_IDX) continue;
         let dx = p.x - _mouseX, dy = p.y - _mouseY;
-        if (dx >  CW / 2) dx -= CW; else if (dx < -CW / 2) dx += CW;
-        if (dy >  CH / 2) dy -= CH; else if (dy < -CH / 2) dy += CH;
+        if (dx >  _worldW / 2) dx -= _worldW; else if (dx < -_worldW / 2) dx += _worldW;
+        if (dy >  _worldH / 2) dy -= _worldH; else if (dy < -_worldH / 2) dy += _worldH;
         const d2 = dx * dx + dy * dy;
         if (d2 < best) { best = d2; nearest = p; }
       }
@@ -186,22 +180,17 @@ function draw() {
     }
 
     ctx.save();
-    ctx.translate(CW / 2 - _viewX * _zoom, CH / 2 - _viewY * _zoom);
     ctx.scale(_zoom, _zoom);
     ctx.lineWidth = 1 / _zoom;
     for (const p of toAnnotate) {
-      for (let tx = -1; tx <= 1; tx++) {
-        for (let ty = -1; ty <= 1; ty++) {
-          ctx.beginPath();
-          ctx.arc(p.x + tx * CW, p.y + ty * CH, R_MAX, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(34,197,94,0.25)';
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.arc(p.x + tx * CW, p.y + ty * CH, R_MIN, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(216,90,48,0.55)';
-          ctx.stroke();
-        }
-      }
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, R_MAX, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(34,197,94,0.25)';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, R_MIN, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(216,90,48,0.55)';
+      ctx.stroke();
     }
     // Speaker radii always shown in debug mode
     ctx.beginPath();
@@ -301,9 +290,9 @@ function initParticles() {
   particles = [];
   for (let s = 0; s < nS; s++)
     for (let k = 0; k < pps[s]; k++)
-      particles.push({x: Math.random()*CW, y: Math.random()*CH, vx:0, vy:0, t:s});
-  // Speaker: locked at canvas center, always last in array
-  particles.push({x: CW/2, y: CH/2, vx:0, vy:0, t: S_IDX});
+      particles.push({x: Math.random()*_worldW, y: Math.random()*_worldH, vx:0, vy:0, t:s});
+  // Speaker: locked at world center, always last in array
+  particles.push({x: _worldW/2, y: _worldH/2, vx:0, vy:0, t: S_IDX});
 }
 
 function loop(ts) {
