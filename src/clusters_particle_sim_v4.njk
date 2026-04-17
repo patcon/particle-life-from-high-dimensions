@@ -313,7 +313,8 @@ function initParticles() {
 
 function loop(ts) {
   const t = ts / 1000;
-  if (running) { updateOscillation(t); step(); draw(); }
+  if (running) { updateOscillation(t); step(); }
+  draw();
   requestAnimationFrame(loop);
 }
 
