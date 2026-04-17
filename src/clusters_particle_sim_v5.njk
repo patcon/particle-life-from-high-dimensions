@@ -345,9 +345,13 @@ let pps = [60, 60, 60, 60, 60];
 
 function initParticles() {
   particles = [];
+  const spawnR = S_RMAX / 2;
   for (let s = 0; s < nS; s++)
-    for (let k = 0; k < pps[s]; k++)
-      particles.push({x: Math.random()*CW, y: Math.random()*CH, vx:0, vy:0, t:s});
+    for (let k = 0; k < pps[s]; k++) {
+      const angle = Math.random() * Math.PI * 2;
+      const r = Math.random() * spawnR;
+      particles.push({x: CW/2 + Math.cos(angle)*r, y: CH/2 + Math.sin(angle)*r, vx:0, vy:0, t:s});
+    }
   // Speaker: locked at canvas center, always last in array
   particles.push({x: CW/2, y: CH/2, vx:0, vy:0, t: S_IDX});
 }
