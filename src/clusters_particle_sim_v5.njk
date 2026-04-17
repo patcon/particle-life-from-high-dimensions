@@ -403,12 +403,12 @@ function renderMatrix() {
       </span>
       <span class="ctrl-pair">
         <label style="font-size:13px;color:#888;" title="Boundary repulsion zone width">s-bwidth</label>
-        <input type="range" min="5" max="200" value="${S_BWIDTH}" step="5" style="width:60px;" id="sbwidth-sl"
+        <input type="range" min="5" max="400" value="${S_BWIDTH}" step="5" style="width:60px;" id="sbwidth-sl"
                oninput="S_BWIDTH=+this.value">
       </span>
       <span class="ctrl-pair">
         <label style="font-size:13px;color:#888;" title="Boundary repulsion gain">s-bforce</label>
-        <input type="range" min="0" max="5" value="${S_BG}" step="0.1" style="width:60px;" id="sbg-sl"
+        <input type="range" min="0" max="10" value="${S_BG}" step="0.1" style="width:60px;" id="sbg-sl"
                oninput="S_BG=+this.value">
       </span>
     </div>
